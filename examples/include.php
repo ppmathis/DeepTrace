@@ -1,0 +1,1 @@
+<?php echo "included by require_once\n"; ?>
