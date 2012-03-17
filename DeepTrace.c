@@ -1,6 +1,6 @@
 /*
 	+-----------------------------------------------------------------------+
-	| DeepTrace v1.2 ( Homepage: https://www.snapserv.net/ )			 	|
+	| DeepTrace v1.2.1 ( Homepage: https://www.snapserv.net/ )			 	|
 	+-----------------------------------------------------------------------+
 	| Copyright (c) 2012 P. Mathis (pmathis@snapserv.net)                   |
 	+-----------------------------------------------------------------------+
@@ -44,6 +44,7 @@ typedef struct {
 static user_opcode_handler_t old_exit_handler = NULL;
 ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 	int throwException;
+	int infoMode;
 	user_handler_t exit_handler;
 ZEND_END_MODULE_GLOBALS(DeepTrace)
 ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
@@ -59,39 +60,72 @@ ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 #define EX(element) execute_data->element
 #define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
 
-#define DEEPTRACE_VERSION "1.2"
+#define DEEPTRACE_VERSION "1.2.1"
 #define DEEPTRACE_PROCTITLE_MAX_LEN 128
 
 /* {{{ Get ZVAL ptr
 */
-static zval *pth_get_zval_ptr(znode *node, zval **freeval, zend_execute_data *execute_data TSRMLS_DC) /* {{{ */
-{
-	*freeval = NULL;
+#if PHP_API_VERSION > 20090626
+	// PHP 5.4
+	static zval *pth_get_zval_ptr(int op_type, znode_op *node, zval **freeval, zend_execute_data *execute_data TSRMLS_DC) /* {{{ */
+	{
+		*freeval = NULL;
 
-	switch (node->op_type) {
-	case IS_CONST:
-		return &(node->u.constant);
-	case IS_VAR:
-		return EX_T(node->u.var).var.ptr;
-	case IS_TMP_VAR:
-		return (*freeval = &EX_T(node->u.var).tmp_var);
-	case IS_CV:
-		{
-		zval ***ret = &execute_data->CVs[node->u.var];
-		if (!*ret) {
-				zend_compiled_variable *cv = &EG(active_op_array)->vars[node->u.var];
-				if (zend_hash_quick_find(EG(active_symbol_table), cv->name, cv->name_len+1, cv->hash_value, (void**)ret)==FAILURE) {
-					zend_error(E_NOTICE, "Undefined variable: %s", cv->name);
-					return &EG(uninitialized_zval);
-				}
+		switch (op_type) {
+		case IS_CONST:
+			return node->zv;
+		case IS_VAR:
+			return EX_T(node->var).var.ptr;
+		case IS_TMP_VAR:
+			return (*freeval = &EX_T(node->var).tmp_var);
+		case IS_CV:
+			{
+			zval ***ret = &execute_data->CVs[node->var];
+			if (!*ret) {
+					zend_compiled_variable *cv = &EG(active_op_array)->vars[node->var];
+					if (zend_hash_quick_find(EG(active_symbol_table), cv->name, cv->name_len+1, cv->hash_value, (void**)ret)==FAILURE) {
+						zend_error(E_NOTICE, "Undefined variable: %s", cv->name);
+						return &EG(uninitialized_zval);
+					}
+			}
+			return **ret;
+			}
+		case IS_UNUSED:
+		default:
+			return NULL;
 		}
-		return **ret;
-		}
-	case IS_UNUSED:
-	default:
-		return NULL;
 	}
-}
+#else
+	// PHP 5.3
+	static zval *pth_get_zval_ptr(znode *node, zval **freeval, zend_execute_data *execute_data TSRMLS_DC) /* {{{ */
+	{
+		*freeval = NULL;
+
+		switch (node->op_type) {
+		case IS_CONST:
+			return &(node->u.constant);
+		case IS_VAR:
+			return EX_T(node->u.var).var.ptr;
+		case IS_TMP_VAR:
+			return (*freeval = &EX_T(node->u.var).tmp_var);
+		case IS_CV:
+			{
+			zval ***ret = &execute_data->CVs[node->u.var];
+			if (!*ret) {
+					zend_compiled_variable *cv = &EG(active_op_array)->vars[node->u.var];
+					if (zend_hash_quick_find(EG(active_symbol_table), cv->name, cv->name_len+1, cv->hash_value, (void**)ret)==FAILURE) {
+						zend_error(E_NOTICE, "Undefined variable: %s", cv->name);
+						return &EG(uninitialized_zval);
+					}
+			}
+			return **ret;
+			}
+		case IS_UNUSED:
+		default:
+			return NULL;
+		}
+	}
+#endif
 /* }}} */
 
 /* {{{ DeepTrace init globals
@@ -119,7 +153,13 @@ static int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 		}
 	}
 	
-	msg = pth_get_zval_ptr(&EX(opline)->op1, &freeop, execute_data TSRMLS_CC);
+	#if PHP_API_VERSION > 20090626
+		// PHP 5.4
+		msg = pth_get_zval_ptr(EX(opline)->op1_type, &EX(opline)->op1, &freeop, execute_data TSRMLS_CC);
+	#else
+		// PHP 5.3
+		msg = pth_get_zval_ptr(&EX(opline)->op1, &freeop, execute_data TSRMLS_CC);
+	#endif
 	if(msg) {
 		zend_fcall_info_argn(&THG(exit_handler).fci TSRMLS_CC, 1, &msg);
 	}
@@ -168,6 +208,21 @@ static void DeepTrace_set_proctitle(char *title, int len) {
 	buffer[DEEPTRACE_PROCTITLE_MAX_LEN - 1] = '\0';
 	memcpy(buffer, title, len);
 	snprintf(argv0, DEEPTRACE_PROCTITLE_MAX_LEN, "%s", buffer);
+}
+/* }}} */
+
+/* {{{ DeepTrace free handler
+*/
+static void DeepTrace_free_handler(zend_fcall_info *fci)
+{
+	if(fci->function_name) {
+		zval_ptr_dtor(&fci->function_name);
+		fci->function_name = NULL;
+	}
+	if(fci->object_ptr) {
+		zval_ptr_dtor(&fci->object_ptr);
+		fci->object_ptr = NULL;
+	}
 }
 /* }}} */
 
@@ -319,7 +374,7 @@ static PHP_FUNCTION(dt_rename_function)
 
 	// Is user function?
 	if(func.type == ZEND_USER_FUNCTION) {
-		efree(func.common.function_name);
+		efree((void *) func.common.function_name);
 		func.common.function_name = estrndup(newFunction, newLen);
 	}
 
@@ -472,6 +527,27 @@ static PHP_FUNCTION(dt_remove_class)
 }
 /* }}} */
 
+/* {{{ proto bool dt_show_plain_info(bool state)
+	Toggles phpinfo() mode (plain / html) */
+static PHP_FUNCTION(dt_show_plain_info)
+{
+	// Get state
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &THG(infoMode)) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	// Set state
+	if(THG(infoMode)) {
+		sapi_module.phpinfo_as_text = 1;
+	} else {
+		sapi_module.phpinfo_as_text = 0;
+	}
+
+	// Return true
+	RETURN_TRUE;
+}
+/* }}} */
+
 /* {{{ arginfo */
 
 /* {{{ set_exit_handler */
@@ -525,6 +601,12 @@ ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_class, 0)
 ZEND_END_ARG_INFO()
 /* }}} */
 
+/* {{{ dt_show_plain_info */
+ZEND_BEGIN_ARG_INFO(arginfo_dt_show_plain_info, 0)
+	ZEND_ARG_INFO(0, "infoMode")
+ZEND_END_ARG_INFO()
+/* }}} */
+
 /* {{{ DeepTrace_zend_startup
 */
 static int DeepTrace_zend_startup(zend_extension *extension)
@@ -547,6 +629,7 @@ const zend_function_entry DeepTrace_functions[] = {
 	PHP_FE(dt_remove_constant, arginfo_dt_remove_constant)
 	PHP_FE(dt_remove_include, arginfo_dt_remove_include)
 	PHP_FE(dt_remove_class, arginfo_dt_remove_class)
+	PHP_FE(dt_show_plain_info, arginfo_dt_show_plain_info)
 	PHP_FE_END	/* Must be the last line in DeepTrace_functions[] */
 };
 /* }}} */
@@ -557,7 +640,7 @@ PHP_MINIT_FUNCTION(DeepTrace)
 {
 	// Init globals
 	ZEND_INIT_MODULE_GLOBALS(DeepTrace, php_DeepTrace_init_globals, NULL);
-
+	
 	// Get argv0
 	sapi_module_struct *symbol = NULL;
 	symbol = &sapi_module;
@@ -576,6 +659,15 @@ PHP_MINIT_FUNCTION(DeepTrace)
  */
 PHP_MSHUTDOWN_FUNCTION(DeepTrace)
 {
+	return SUCCESS;
+}
+/* }}} */
+
+/* {{{ PHP_RSHUTDOWN_FUNCTION
+ */
+PHP_RSHUTDOWN_FUNCTION(DeepTrace)
+{
+	DeepTrace_free_handler(&THG(exit_handler).fci TSRMLS_CC);
 	return SUCCESS;
 }
 /* }}} */

@@ -1,7 +1,7 @@
 <?php
 	/*
 		+-----------------------------------------------------------------------+
-		| DeepTrace v1.2 ( Homepage: https://www.snapserv.net/ )			 	|
+		| DeepTrace v1.2.1 ( Homepage: https://www.snapserv.net/ )			 	|
 		+-----------------------------------------------------------------------+
 		| Copyright (c) 2012 P. Mathis (pmathis@snapserv.net)                   |
 		+-----------------------------------------------------------------------+
@@ -222,4 +222,19 @@
 	} else {
 		echo "Class DeepTraceRocks does not exist.\n";
 	}
+
+	/*
+		+-----------------------------------------------------------------------+
+		| Test: dt_show_plain_info												|
+		+-----------------------------------------------------------------------+
+		| Parameters: bool infoMode												|
+		| Return value: bool success											|
+		+-----------------------------------------------------------------------+
+		| Explanation: Changes the style of phpinfo() - true means plain text 	|
+		| output like CLI, false means HTML output. That's it!					|
+		+-----------------------------------------------------------------------+
+	*/
+	dt_show_plain_info(false);
+	// Commented out - creates a lot of output!
+	// internal_phpinfo();
 ?>

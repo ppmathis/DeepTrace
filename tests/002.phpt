@@ -10,6 +10,7 @@ Check for DeepTrace functions
 <?php if (!function_exists("dt_set_proctitle")) print "Function dt_set_proctitle() not available"; ?>
 <?php if (!function_exists("dt_set_exit_handler")) print "Function dt_set_exit_handler() not available"; ?>
 <?php if (!function_exists("dt_throw_exit_exception")) print "Function dt_throw_exit_exception() not available"; ?>
+<?php if (!function_exists("dt_show_plain_info")) print "Function dt_show_plain_info() not available"; ?>
 --FILE--
 <?php 
 echo "DeepTrace functions are available";
