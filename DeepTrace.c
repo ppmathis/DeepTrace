@@ -665,15 +665,6 @@ PHP_MSHUTDOWN_FUNCTION(DeepTrace)
 }
 /* }}} */
 
-/* {{{ PHP_RSHUTDOWN_FUNCTION
- */
-PHP_RSHUTDOWN_FUNCTION(DeepTrace)
-{
-	DeepTrace_free_handler(&THG(exit_handler).fci TSRMLS_CC);
-	return SUCCESS;
-}
-/* }}} */
-
 /* {{{ PHP_MINFO_FUNCTION
  */
 PHP_MINFO_FUNCTION(DeepTrace)
@@ -704,7 +695,7 @@ zend_module_entry DeepTrace_module_entry = {
 	PHP_MINIT(DeepTrace),
 	PHP_MSHUTDOWN(DeepTrace),
 	NULL,
-	PHP_RSHUTDOWN(DeepTrace),
+	NULL,
 	PHP_MINFO(DeepTrace),
 	DEEPTRACE_VERSION,
 	STANDARD_MODULE_PROPERTIES
