@@ -1,6 +1,6 @@
 /*
 	+-----------------------------------------------------------------------+
-	| DeepTrace v1.2.1 ( Homepage: https://www.snapserv.net/ )			 	|
+	| DeepTrace v1.2.2 ( Homepage: https://www.snapserv.net/ )			 	|
 	+-----------------------------------------------------------------------+
 	| Copyright (c) 2012 P. Mathis (pmathis@snapserv.net)                   |
 	+-----------------------------------------------------------------------+
@@ -60,7 +60,7 @@ ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 #define EX(element) execute_data->element
 #define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
 
-#define DEEPTRACE_VERSION "1.2.1"
+#define DEEPTRACE_VERSION "1.2.2"
 #define DEEPTRACE_PROCTITLE_MAX_LEN 128
 
 /* {{{ Get ZVAL ptr
@@ -133,6 +133,7 @@ ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 static void php_DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 {
 	globals->throwException = 0;
+	globals->infoMode = sapi_module.phpinfo_as_text;
 	globals->exit_handler.fci.function_name = NULL;
 	globals->exit_handler.fci.object_ptr = NULL;
 }
@@ -161,6 +162,7 @@ static int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 		msg = pth_get_zval_ptr(&EX(opline)->op1, &freeop, execute_data TSRMLS_CC);
 	#endif
 	if(msg) {
+		
 		zend_fcall_info_argn(&THG(exit_handler).fci TSRMLS_CC, 1, &msg);
 	}
 	
@@ -228,7 +230,7 @@ static void DeepTrace_free_handler(zend_fcall_info *fci)
 
 /* {{{ DeepTrace set handler
 */
-static void DeepTrace_set_handler(user_opcode_handler_t op_handler, int opcode, user_handler_t* handler, INTERNAL_FUNCTION_PARAMETERS)
+static void DeepTrace_set_handler(user_opcode_handler_t op_handler, int opcode, user_handler_t *handler, INTERNAL_FUNCTION_PARAMETERS)
 {
 	zend_fcall_info fci;
 	zend_fcall_info_cache fcc;
@@ -249,7 +251,7 @@ static void DeepTrace_set_handler(user_opcode_handler_t op_handler, int opcode, 
 	if(handler->fci.object_ptr) {
 		Z_ADDREF_P(handler->fci.object_ptr);
 	}
-	
+
 	RETURN_TRUE;
 }
 
@@ -265,7 +267,7 @@ static PHP_FUNCTION(dt_set_exit_handler)
 	Set throw string after exit()/die() callback */
 static PHP_FUNCTION(dt_throw_exit_exception)
 {
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &THG(throwException)) == FAILURE) {
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &THG(throwException)) == FAILURE) {
 		RETURN_FALSE;
 	}
 	RETURN_TRUE;
@@ -531,12 +533,12 @@ static PHP_FUNCTION(dt_remove_class)
 	Toggles phpinfo() mode (plain / html) */
 static PHP_FUNCTION(dt_show_plain_info)
 {
-	// Get state
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &THG(infoMode)) == FAILURE) {
+	// Get info mode
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &THG(infoMode)) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	// Set state
+	// Set info mode
 	if(THG(infoMode)) {
 		sapi_module.phpinfo_as_text = 1;
 	} else {
@@ -702,7 +704,7 @@ zend_module_entry DeepTrace_module_entry = {
 	PHP_MINIT(DeepTrace),
 	PHP_MSHUTDOWN(DeepTrace),
 	NULL,
-	NULL,
+	PHP_RSHUTDOWN(DeepTrace),
 	PHP_MINFO(DeepTrace),
 	DEEPTRACE_VERSION,
 	STANDARD_MODULE_PROPERTIES
