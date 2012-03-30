@@ -1,4 +1,4 @@
-# DeepTrace v1.2
+# DeepTrace v1.3
 ### Copyright (c) 2012 P. Mathis (pmathis@snapserv.net)
 * * *
 #### License informations

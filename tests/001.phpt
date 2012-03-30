@@ -1,5 +1,5 @@
 --TEST--
-Check for DeepTrace presence
+Checking for DeepTrace presence
 --SKIPIF--
 <?php if (!extension_loaded("DeepTrace")) print "Extension not loaded"; ?>
 --FILE--
