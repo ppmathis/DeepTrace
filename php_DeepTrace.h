@@ -55,8 +55,10 @@ extern zend_module_entry DeepTrace_module_entry;
 #ifdef ZTS
 	#include "TSRM.h"
 	#define DEEPTRACE_G(v) TSRMG(DeepTrace_globals_id, zend_DeepTrace_globals *, v)
+	#define DEEPTRACE_TSRMLS_C TSRMLS_C
 #else
 	#define DEEPTRACE_G(v) (DeepTrace_globals.v)
+	#define DEEPTRACE_TSRMLS_C NULL
 #endif
 
 // Redefine some zend macros
@@ -67,6 +69,8 @@ extern zend_module_entry DeepTrace_module_entry;
 // Module entry and exit points
 PHP_MINIT_FUNCTION(DeepTrace);
 PHP_MSHUTDOWN_FUNCTION(DeepTrace);
+PHP_RINIT_FUNCTION(DeepTrace);
+PHP_RSHUTDOWN_FUNCTION(DeepTrace);
 PHP_MINFO_FUNCTION(DeepTrace);
 
 // PHP versions
@@ -98,6 +102,7 @@ ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 	zend_bool throwException;
 	zend_class_entry *exitException;
 	char *exitExceptionType;
+	zend_class_entry exitExceptionClass;
 
 	// Function hashtables
 	HashTable *replaced_internal_functions;
@@ -106,7 +111,7 @@ ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 
 // DeepTrace constants
-#define DEEPTRACE_VERSION "1.3"
+#define DEEPTRACE_VERSION "1.3.1"
 #define DEEPTRACE_PROCTITLE_MAX_LEN 128
 #define DEEPTRACE_EXIT_EXCEPTION_TYPE "DeepTraceExitException"
 #define DEEPTRACE_FUNCTION_REMOVE 1
@@ -130,5 +135,9 @@ PHP_FUNCTION(dt_remove_trait);
 
 // DeepTrace internal functions
 int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS);
+void DeepTrace_free_handler(zend_fcall_info *fci);
+int DeepTrace_destroy_misplaced_functions(zend_hash_key *hash_key TSRMLS_DC);
+int DeepTrace_restore_internal_functions(zend_internal_function *func TSRMLS_DC, int numArgs, va_list args, zend_hash_key *hash_key);
+int DeepTrace_delete_user_functions(void *dest TSRMLS_DC);
 
 #endif

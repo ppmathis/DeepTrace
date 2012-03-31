@@ -102,7 +102,7 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 	// Call user handler
 	zend_fcall_info_call(&DEEPTRACE_G(exitHandler).fci, &DEEPTRACE_G(exitHandler).fcc, &retval, NULL TSRMLS_CC);
 	zend_fcall_info_args_clear(&DEEPTRACE_G(exitHandler).fci, 1);
-
+	
 	// Parse return value
 	convert_to_boolean(retval);
 	if(Z_LVAL_P(retval)) {
@@ -158,6 +158,19 @@ int DeepTrace_set_handler(user_opcode_handler_t opcodeHandler, int opcode, dt_op
 	return SUCCESS;
 }
 
+// DeepTrace_free_handler
+void DeepTrace_free_handler(zend_fcall_info *fci)
+{
+	if(fci->function_name) {
+		zval_ptr_dtor(&fci->function_name);
+		fci->function_name = NULL;
+	}
+	if(fci->object_ptr) {
+		zval_ptr_dtor(&fci->object_ptr);
+		fci->object_ptr = NULL;
+	}
+}
+
 // dt_set_exit_handler
 // Parameters: string exitHandlerFunction
 // Return value: bool success
@@ -176,7 +189,6 @@ PHP_FUNCTION(dt_set_exit_handler)
 // Return value: bool success
 PHP_FUNCTION(dt_throw_exit_exception)
 {
-	zend_class_entry ce;
 	int exceptionTypeLen = 0;
 
 	// Default type name
@@ -188,8 +200,6 @@ PHP_FUNCTION(dt_throw_exit_exception)
 	}
 
 	// Create exception class
-	INIT_CLASS_ENTRY(ce, DEEPTRACE_G(exitExceptionType), NULL)
-	ce.name = strdup(DEEPTRACE_G(exitExceptionType));
-	ce.name_length = strlen(ce.name);
-	DEEPTRACE_G(exitException) = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	INIT_OVERLOADED_CLASS_ENTRY_EX(DEEPTRACE_G(exitExceptionClass), DEEPTRACE_G(exitExceptionType), strlen(DEEPTRACE_G(exitExceptionType)), NULL, NULL, NULL, NULL, NULL, NULL);
+	DEEPTRACE_G(exitException) = zend_register_internal_class_ex(&DEEPTRACE_G(exitExceptionClass), zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }

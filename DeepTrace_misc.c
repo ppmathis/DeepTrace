@@ -20,9 +20,12 @@
 
 #include "php_DeepTrace.h"
 
+static const zend_function_entry removedClassFuncs[] = {ZEND_FE_END};
+
 // DeepTrace_remove_class
 int DeepTrace_remove_class(char *name, int len, int type)
 {
+	zend_class_entry removedClass;
 	char *lcase;
 
 	// Make class name lower case
@@ -45,7 +48,7 @@ int DeepTrace_remove_class(char *name, int len, int type)
 		efree(lcase);
 		return 0;
 	}
-
+	
 	// Free memory
 	efree(lcase);
 	return 1;

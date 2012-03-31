@@ -100,6 +100,7 @@ void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 	globals->throwException = 0;
 	globals->exitExceptionType = DEEPTRACE_EXIT_EXCEPTION_TYPE;
 	globals->exitException = NULL;
+	globals->exitExceptionClass.name = NULL;
 	globals->replaced_internal_functions = NULL;
 	globals->misplaced_internal_functions = NULL;
 }
@@ -118,6 +119,42 @@ PHP_MINIT_FUNCTION(DeepTrace)
 	oldExitHandler = zend_get_user_opcode_handler(ZEND_EXIT);
 	zend_set_user_opcode_handler(ZEND_EXIT, DeepTrace_exit_handler);
 
+	return SUCCESS;
+}
+
+// DeepTrace RINIT function
+PHP_RINIT_FUNCTION(DeepTrace)
+{
+	// Clear tables
+	DEEPTRACE_G(replaced_internal_functions) = NULL;
+	DEEPTRACE_G(misplaced_internal_functions) = NULL;
+
+	return SUCCESS;
+}
+
+// DeepTrace RSHUTDOWN function
+PHP_RSHUTDOWN_FUNCTION(DeepTrace)
+{
+	// Unload handlers
+	DeepTrace_free_handler(&DEEPTRACE_G(exitHandler).fci);
+	zend_set_user_opcode_handler(ZEND_EXIT, NULL);
+
+	// Fix internal functions
+	if(DEEPTRACE_G(misplaced_internal_functions)) {
+		zend_hash_apply(DEEPTRACE_G(misplaced_internal_functions), (apply_func_t) DeepTrace_destroy_misplaced_functions TSRMLS_CC);
+		zend_hash_destroy(DEEPTRACE_G(misplaced_internal_functions));
+		FREE_HASHTABLE(DEEPTRACE_G(misplaced_internal_functions));
+		DEEPTRACE_G(misplaced_internal_functions) = NULL;
+	}
+
+	if(DEEPTRACE_G(replaced_internal_functions)) {
+		zend_hash_apply_with_arguments(DEEPTRACE_G(replaced_internal_functions) TSRMLS_CC, (apply_func_args_t) DeepTrace_restore_internal_functions, 1, DEEPTRACE_TSRMLS_C);
+		zend_hash_destroy(DEEPTRACE_G(replaced_internal_functions));
+		FREE_HASHTABLE(DEEPTRACE_G(replaced_internal_functions));
+		DEEPTRACE_G(replaced_internal_functions) = NULL;
+	}
+
+	zend_hash_apply(EG(function_table), DeepTrace_delete_user_functions TSRMLS_CC);
 	return SUCCESS;
 }
 
@@ -161,8 +198,8 @@ zend_module_entry DeepTrace_module_entry = {
 	DeepTrace_functions,
 	PHP_MINIT(DeepTrace),
 	PHP_MSHUTDOWN(DeepTrace),
-	NULL,
-	NULL,
+	PHP_RINIT(DeepTrace),
+	PHP_RSHUTDOWN(DeepTrace),
 	PHP_MINFO(DeepTrace),
 	DEEPTRACE_VERSION,
 	STANDARD_MODULE_PROPERTIES

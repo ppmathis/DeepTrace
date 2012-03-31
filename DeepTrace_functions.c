@@ -62,27 +62,38 @@ int DeepTrace_fetch_function(char *funcName, int funcLen, zend_function **funcPt
 			zend_hash_next_index_insert(DEEPTRACE_G(misplaced_internal_functions), (void*) &hash_key, sizeof(zend_hash_key), NULL);
 		}
 	}
+
+	return SUCCESS;
 }
 
 // DeepTrace_destroy_misplaced_functions
-static int DeepTrace_destroy_misplaced_functions(zend_hash_key *hash_key TSRMLS_DC)
+int DeepTrace_destroy_misplaced_functions(zend_hash_key *hash_key TSRMLS_DC)
 {
-	if(!hash_key->nKeyLength) {
-		return ZEND_HASH_APPLY_REMOVE;
-	}
+	char *key;
 
+	if(!hash_key->nKeyLength) return ZEND_HASH_APPLY_REMOVE;
+
+	key = (char*) hash_key->arKey;
 	zend_hash_del(EG(function_table), hash_key->arKey, hash_key->nKeyLength);
+	efree(key);
 	return ZEND_HASH_APPLY_REMOVE;
 }
 
 // DeepTrace_restore_internal_functions
-static int DeepTrace_restore_internal_functions(zend_internal_function *func TSRMLS_DC, int numArgs, va_list args, zend_hash_key *hash_key) {
-	if(!hash_key->nKeyLength) {
-		return ZEND_HASH_APPLY_REMOVE;
-	}
+int DeepTrace_restore_internal_functions(zend_internal_function *func TSRMLS_DC, int numArgs, va_list args, zend_hash_key *hash_key) {
+	if(!hash_key->nKeyLength) return ZEND_HASH_APPLY_REMOVE;
 
 	zend_hash_update(EG(function_table), hash_key->arKey, hash_key->nKeyLength, (void*) func, sizeof(zend_function), NULL);
 	return ZEND_HASH_APPLY_REMOVE;
+}
+
+// DeepTrace_delete_user_functions
+int DeepTrace_delete_user_functions(void *dest TSRMLS_DC)
+{
+	if(dest == NULL || ((zend_function *) dest)->type != ZEND_INTERNAL_FUNCTION) {
+		return ZEND_HASH_APPLY_REMOVE;
+	}
+	return ZEND_HASH_APPLY_KEEP;
 }
 
 // dt_remove_function

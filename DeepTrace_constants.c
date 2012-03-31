@@ -28,6 +28,7 @@ PHP_FUNCTION(dt_remove_constant)
 	zend_constant *constant;
 	char *constName, *lcase;
 	int len;
+	int caseSensitive;
 
 	// Get parameters
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &constName, &len) == FAILURE) {
@@ -57,7 +58,8 @@ PHP_FUNCTION(dt_remove_constant)
 	}
 
 	// Is case-Sensitive?
-	if((constant->flags & CONST_CS) == 0) {
+	caseSensitive = (constant->flags & CONST_CS) == 0;
+	if(caseSensitive) {
 		constName = zend_str_tolower_dup(constName, len);
 	} else {
 		constName = constant->name;
@@ -71,6 +73,6 @@ PHP_FUNCTION(dt_remove_constant)
 	}
 
 	// Free memory
-	if((constant->flags & CONST_CS) == 0) efree(constName);
+	if(caseSensitive) efree(constName);
 	RETURN_TRUE;
 }
