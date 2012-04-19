@@ -6,7 +6,7 @@ This code is licensed via a Creative Commons Licence: http://creativecommons.org
 
 Means:
 
-* You may alter the code, but have to give the chances back
+* You may alter the code, but have to give the changes back
 * You may not use this work for commercial purposes
 * You must attribute the work in the manner specified by the author or licensor
 

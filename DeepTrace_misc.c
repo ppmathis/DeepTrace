@@ -39,7 +39,7 @@ int DeepTrace_remove_class(char *name, int len, int type)
 		efree(lcase);
 		return 0;
 	}
-
+	
 	// Remove class in hash map
 	if(zend_hash_del(EG(class_table), lcase, len + 1) == FAILURE) {
 		if(type == DEEPTRACE_REMOVE_CLASS) php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove class %s.", name);
@@ -48,7 +48,7 @@ int DeepTrace_remove_class(char *name, int len, int type)
 		efree(lcase);
 		return 0;
 	}
-	
+
 	// Free memory
 	efree(lcase);
 	return 1;

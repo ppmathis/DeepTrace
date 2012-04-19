@@ -120,7 +120,10 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 
 		// Throw exception if desired
 		if(DEEPTRACE_G(throwException)) {
-			if(exitMsg) {
+			if(exitMsg && Z_TYPE_P(exitMsg) == IS_STRING) {
+				zend_throw_exception(DEEPTRACE_G(exitException), Z_STRVAL_P(exitMsg), -1 TSRMLS_CC);
+			} else if (exitMsg) {
+				convert_to_string(exitMsg);
 				zend_throw_exception(DEEPTRACE_G(exitException), Z_STRVAL_P(exitMsg), -1 TSRMLS_CC);
 			} else {
 				zend_throw_exception(DEEPTRACE_G(exitException), "", -1 TSRMLS_CC);
