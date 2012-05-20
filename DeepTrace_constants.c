@@ -89,6 +89,66 @@ PHP_FUNCTION(dt_get_cache_size) {
 	return;
 }
 
+// zend_get_special_constant
+// Get special constant (const)
+static int zend_get_special_constant(const char *name, uint name_len, zend_constant **c TSRMLS_DC)
+{
+	int ret;
+	static char haltoff[] = "__COMPILER_HALT_OFFSET__";
+
+	if (!EG(in_execution)) {
+		return 0;
+	} else if (name_len == sizeof("__CLASS__")-1 &&
+	          !memcmp(name, "__CLASS__", sizeof("__CLASS__")-1)) {
+		zend_constant tmp;
+
+		/* Returned constants may be cached, so they have to be stored */
+		if (EG(scope) && EG(scope)->name) {
+			int const_name_len;
+			char *const_name;
+			ALLOCA_FLAG(use_heap)
+			
+			const_name_len = sizeof("\0__CLASS__") + EG(scope)->name_length;
+			const_name = do_alloca(const_name_len, use_heap);
+			memcpy(const_name, "\0__CLASS__", sizeof("\0__CLASS__")-1);
+			zend_str_tolower_copy(const_name + sizeof("\0__CLASS__")-1, EG(scope)->name, EG(scope)->name_length);
+			if (zend_hash_find(EG(zend_constants), const_name, const_name_len, (void**)c) == FAILURE) {
+				zend_hash_add(EG(zend_constants), const_name, const_name_len, (void*)&tmp, sizeof(zend_constant), (void**)c);
+				memset(*c, 0, sizeof(zend_constant));
+				Z_STRVAL((**c).value) = estrndup(EG(scope)->name, EG(scope)->name_length);
+				Z_STRLEN((**c).value) = EG(scope)->name_length;
+				Z_TYPE((**c).value) = IS_STRING;
+			}
+			free_alloca(const_name, use_heap);
+		} else {
+			if (zend_hash_find(EG(zend_constants), "\0__CLASS__", sizeof("\0__CLASS__"), (void**)c) == FAILURE) {
+				zend_hash_add(EG(zend_constants), "\0__CLASS__", sizeof("\0__CLASS__"), (void*)&tmp, sizeof(zend_constant), (void**)c);
+				memset(*c, 0, sizeof(zend_constant));
+				Z_STRVAL((**c).value) = estrndup("", 0);
+				Z_STRLEN((**c).value) = 0;
+				Z_TYPE((**c).value) = IS_STRING;
+			}
+		}
+		return 1;
+	} else if (name_len == sizeof("__COMPILER_HALT_OFFSET__")-1 &&
+	          !memcmp(name, "__COMPILER_HALT_OFFSET__", sizeof("__COMPILER_HALT_OFFSET__")-1)) {
+		const char *cfilename;
+		char *haltname;
+		int len, clen;
+
+		cfilename = zend_get_executed_filename(TSRMLS_C);
+		clen = strlen(cfilename);
+		/* check for __COMPILER_HALT_OFFSET__ */
+		zend_mangle_property_name(&haltname, &len, haltoff,
+			sizeof("__COMPILER_HALT_OFFSET__") - 1, cfilename, clen, 0);
+		ret = zend_hash_find(EG(zend_constants), haltname, len+1, (void **) c);
+		efree(haltname);
+		return (ret == SUCCESS);
+	} else {
+		return 0;
+	}
+}
+
 // zend_quick_get_constant
 // Get constant from literal
 zend_constant *zend_quick_get_constant(const zend_literal *key, ulong flags TSRMLS_DC)

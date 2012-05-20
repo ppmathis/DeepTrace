@@ -147,6 +147,7 @@ PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 	// Unload handlers
 	DeepTrace_free_handler(&DEEPTRACE_G(exitHandler).fci);
 	zend_set_user_opcode_handler(ZEND_EXIT, NULL);
+	zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, NULL);
 
 	// Kill runtimecache hashtable
 	zend_hash_destroy(DEEPTRACE_G(constantCache));
