@@ -1,6 +1,5 @@
 dnl $Id$
-dnl DeepTrace extension
-dnl config.m4
+dnl config.m4 for DeepTrace extension
 
 PHP_ARG_ENABLE(DeepTrace, whether to enable DeepTrace support,
 [  --enable-DeepTrace           Enable DeepTrace support])

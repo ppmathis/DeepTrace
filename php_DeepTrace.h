@@ -107,6 +107,9 @@ ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 	// Function hashtables
 	HashTable *replaced_internal_functions;
 	HashTable *misplaced_internal_functions;
+
+	// Runtime cache
+	HashTable *constantCache;
 ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 
@@ -132,6 +135,7 @@ PHP_FUNCTION(dt_remove_function);
 PHP_FUNCTION(dt_remove_class);
 PHP_FUNCTION(dt_remove_interface);
 PHP_FUNCTION(dt_remove_trait);
+PHP_FUNCTION(dt_get_cache_size);
 
 // DeepTrace internal functions
 int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS);
@@ -139,5 +143,6 @@ void DeepTrace_free_handler(zend_fcall_info *fci);
 int DeepTrace_destroy_misplaced_functions(zend_hash_key *hash_key TSRMLS_DC);
 int DeepTrace_restore_internal_functions(zend_internal_function *func TSRMLS_DC, int numArgs, va_list args, zend_hash_key *hash_key);
 int DeepTrace_delete_user_functions(void *dest TSRMLS_DC);
+int DeepTrace_constant_handler(ZEND_OPCODE_HANDLER_ARGS);
 
 #endif

@@ -74,6 +74,9 @@ ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_trait, 0)
 	ZEND_ARG_INFO(0, "traitName")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO(arginfo_dt_get_cache_size, 0)
+ZEND_END_ARG_INFO()
+
 // DeepTrace public functions
 const zend_function_entry DeepTrace_functions[] = {
 	PHP_FE(dt_set_exit_handler, arginfo_dt_set_exit_handler)
@@ -87,6 +90,7 @@ const zend_function_entry DeepTrace_functions[] = {
 	PHP_FE(dt_remove_class, arginfo_dt_remove_class)
 	PHP_FE(dt_remove_interface, arginfo_dt_remove_interface)
 	PHP_FE(dt_remove_trait, arginfo_dt_remove_trait)
+	PHP_FE(dt_get_cache_size, arginfo_dt_get_cache_size)
 	PHP_FE_END
 };
 
@@ -103,6 +107,7 @@ void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 	globals->exitExceptionClass.name = NULL;
 	globals->replaced_internal_functions = NULL;
 	globals->misplaced_internal_functions = NULL;
+	globals->constantCache = NULL;
 }
 
 // DeepTrace MINIT function
@@ -119,6 +124,9 @@ PHP_MINIT_FUNCTION(DeepTrace)
 	oldExitHandler = zend_get_user_opcode_handler(ZEND_EXIT);
 	zend_set_user_opcode_handler(ZEND_EXIT, DeepTrace_exit_handler);
 
+	// Run Time Cache Bypass
+	zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, DeepTrace_constant_handler);
+
 	return SUCCESS;
 }
 
@@ -128,6 +136,7 @@ PHP_RINIT_FUNCTION(DeepTrace)
 	// Clear tables
 	DEEPTRACE_G(replaced_internal_functions) = NULL;
 	DEEPTRACE_G(misplaced_internal_functions) = NULL;
+	DEEPTRACE_G(constantCache) = NULL;
 
 	return SUCCESS;
 }
@@ -138,6 +147,11 @@ PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 	// Unload handlers
 	DeepTrace_free_handler(&DEEPTRACE_G(exitHandler).fci);
 	zend_set_user_opcode_handler(ZEND_EXIT, NULL);
+
+	// Kill runtimecache hashtable
+	zend_hash_destroy(DEEPTRACE_G(constantCache));
+	FREE_HASHTABLE(DEEPTRACE_G(constantCache));
+	DEEPTRACE_G(constantCache) = NULL;
 
 	// Fix internal functions
 	if(DEEPTRACE_G(misplaced_internal_functions)) {
