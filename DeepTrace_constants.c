@@ -65,16 +65,16 @@ PHP_FUNCTION(dt_remove_constant)
 		constName = constant->name;
 	}
 
+	// Remove constant from cache
+	if(DEEPTRACE_G(constantCache)) {
+		zend_hash_del(DEEPTRACE_G(constantCache), constName, constant->name_len);
+	}
+
 	// Delete constant
 	if(zend_hash_del(EG(zend_constants), constName, constant->name_len) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Could not remove constant %s.", constName);
 		if(caseSensitive) efree(constName);
 		RETURN_FALSE;
-	}
-
-	// Remove constant from cache
-	if(DEEPTRACE_G(constantCache)) {
-		zend_hash_del(DEEPTRACE_G(constantCache), constName, constant->name_len);
 	}
 
 	// Free memory
@@ -187,7 +187,11 @@ zend_constant *zend_quick_get_constant(const zend_literal *key, ulong flags TSRM
 // Overrides intern RunTimeCache
 int DeepTrace_constant_handler(ZEND_OPCODE_HANDLER_ARGS) {
 	char* constName;
+	char* className;
+	char* combinedName;
 	int constLen;
+	int classLen;
+	int combinedLen;
 	void* cachePtr;
 	zend_constant *c;
 
@@ -202,20 +206,83 @@ int DeepTrace_constant_handler(ZEND_OPCODE_HANDLER_ARGS) {
 	}
 
 	// Get cache pointer
-	if(zend_hash_find(DEEPTRACE_G(constantCache), constName, constLen, (void**) &cachePtr)) {
-		// Detect pointer
-		c = zend_quick_get_constant(EX(opline)->op2.literal + 1, EX(opline)->extended_value TSRMLS_CC);
-		cachePtr = (void*) c;
+	if(EX(opline)->op1_type == IS_UNUSED) {
+		if(zend_hash_find(DEEPTRACE_G(constantCache), constName, constLen, (void**) &cachePtr)) {
+			// Add normal constant to cache
+			// Detect pointer
+			c = zend_quick_get_constant(EX(opline)->op2.literal + 1, EX(opline)->extended_value TSRMLS_CC);
+			cachePtr = (void*) c;
 
-		// Add to cache
-		zend_printf("[DT Cache - Add] %s @ %d\n", constName, cachePtr);
-		zend_hash_add(DEEPTRACE_G(constantCache), constName, constLen, (void**) &cachePtr, sizeof(void*), NULL);
+			// Add to cache
+			#if DEEPTRACE_DEBUG_CACHE == 1
+				zend_printf("[DT Cache - Add] %s @ %d\n", constName, cachePtr);
+			#endif
+			zend_hash_add(DEEPTRACE_G(constantCache), constName, constLen, (void**) &cachePtr, sizeof(void*), NULL);
+		} else {
+			// Get pointer from cache
+			#if DEEPTRACE_DEBUG_CACHE == 1
+				zend_printf("[DT Cache - Get] %s @ %d\n", constName, cachePtr);
+			#endif
+			cachePtr = *((void**) cachePtr);
+		}
 	} else {
-		cachePtr = *((void**) cachePtr);
-		zend_printf("[DT Cache - Get] %s @ %d\n", constName, cachePtr);
+		// Build constant name
+		className = Z_STRVAL_P(EX(opline)->op1.zv);
+		classLen = Z_STRLEN_P(EX(opline)->op1.zv) + 1;
+		combinedName = emalloc(classLen + constLen + 1);
+		combinedLen = classLen + constLen + 1;
+		sprintf(combinedName, "%s%c%s%c", className, '\0', constName, '\0');
+
+		if(zend_hash_find(DEEPTRACE_G(constantCache), combinedName, combinedLen, (void**) &cachePtr)) {
+			// Add class constant to cache
+			// Get class
+			zend_class_entry *ce;
+			zval **value;
+			if (CACHED_PTR(EX(opline)->op2.literal->cache_slot)) {
+				value = CACHED_PTR(EX(opline)->op2.literal->cache_slot);
+				ZVAL_COPY_VALUE(&EX_T(EX(opline)->result.var).tmp_var, *value);
+				zval_copy_ctor(&EX_T(EX(opline)->result.var).tmp_var);
+				CHECK_EXCEPTION();
+				ZEND_VM_NEXT_OPCODE();
+			} else if (CACHED_PTR(EX(opline)->op1.literal->cache_slot)) {
+				ce = CACHED_PTR(EX(opline)->op1.literal->cache_slot);
+			} else {
+				ce = zend_fetch_class_by_name(className, classLen, EX(opline)->op1.literal + 1, EX(opline)->extended_value TSRMLS_CC);
+				if (UNEXPECTED(ce == NULL)) {
+					CHECK_EXCEPTION();
+					ZEND_VM_NEXT_OPCODE();
+				}
+				CACHE_PTR(EX(opline)->op1.literal->cache_slot, ce);
+			}
+
+			// Detect pointer
+			zend_hash_quick_find(&ce->constants_table, constName, constLen, Z_HASH_P(EX(opline)->op2.zv), (void **) &value);
+			cachePtr = (void*) value;
+
+			// Add to cache
+			#if DEEPTRACE_DEBUG_CACHE == 1
+				zend_printf("[DT Cache - Class Add] %s in %s @ %d\n", constName, className, cachePtr);
+			#endif
+			zend_hash_add(DEEPTRACE_G(constantCache), combinedName, combinedLen, (void**) &cachePtr, sizeof(void*), NULL);
+		} else {
+			// Get pointer from cache
+			#if DEEPTRACE_DEBUG_CACHE == 1
+				zend_printf("[DT Cache - Class Get] %s in %s @ %d\n", constName, className, cachePtr);
+			#endif
+			cachePtr = *((void**) cachePtr);	
+		}
+
+		// Free constant name
+		efree(combinedName);
 	}
+	
 
 	// Modify Zend cache
 	EG(active_op_array)->run_time_cache[EX(opline)->op2.literal->cache_slot] = cachePtr;
 	return ZEND_USER_OPCODE_DISPATCH;
+}
+
+// DeepTrace_destroy_cache_entries
+int DeepTrace_destroy_cache_entries(zend_hash_key *hash_key TSRMLS_DC) {
+	return ZEND_HASH_APPLY_REMOVE;
 }

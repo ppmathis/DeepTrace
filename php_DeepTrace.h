@@ -114,7 +114,7 @@ ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 
 // DeepTrace constants
-#define DEEPTRACE_VERSION "1.3.1"
+#define DEEPTRACE_VERSION "1.3.2"
 #define DEEPTRACE_PROCTITLE_MAX_LEN 128
 #define DEEPTRACE_EXIT_EXCEPTION_TYPE "DeepTraceExitException"
 #define DEEPTRACE_FUNCTION_REMOVE 1
@@ -122,6 +122,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 #define DEEPTRACE_REMOVE_CLASS 1
 #define DEEPTRACE_REMOVE_INTERFACE 2
 #define DEEPTRACE_REMOVE_TRAIT 3
+#define DEEPTRACE_DEBUG_CACHE 0
 
 // DeepTrace PHP functions
 PHP_FUNCTION(dt_set_exit_handler);
@@ -144,5 +145,6 @@ int DeepTrace_destroy_misplaced_functions(zend_hash_key *hash_key TSRMLS_DC);
 int DeepTrace_restore_internal_functions(zend_internal_function *func TSRMLS_DC, int numArgs, va_list args, zend_hash_key *hash_key);
 int DeepTrace_delete_user_functions(void *dest TSRMLS_DC);
 int DeepTrace_constant_handler(ZEND_OPCODE_HANDLER_ARGS);
+int DeepTrace_destroy_cache_entries(zend_hash_key *hash_key TSRMLS_DC);
 
 #endif

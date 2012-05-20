@@ -150,9 +150,12 @@ PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 	zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, NULL);
 
 	// Kill runtimecache hashtable
-	zend_hash_destroy(DEEPTRACE_G(constantCache));
-	FREE_HASHTABLE(DEEPTRACE_G(constantCache));
-	DEEPTRACE_G(constantCache) = NULL;
+	if(DEEPTRACE_G(constantCache)) {
+		zend_hash_apply(DEEPTRACE_G(constantCache), (apply_func_t) DeepTrace_destroy_cache_entries TSRMLS_CC);
+		zend_hash_destroy(DEEPTRACE_G(constantCache));
+		FREE_HASHTABLE(DEEPTRACE_G(constantCache));
+		DEEPTRACE_G(constantCache) = NULL;
+	}
 
 	// Fix internal functions
 	if(DEEPTRACE_G(misplaced_internal_functions)) {
