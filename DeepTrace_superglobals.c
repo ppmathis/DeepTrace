@@ -52,10 +52,12 @@ int dt_register_superglobal(char* variableName, int len) {
 	/* Register auto global */
 	zend_auto_global auto_global;
 
-	auto_global.name = zend_new_interned_string((char*) variableName, len + 1, 0 TSRMLS_CC);
+	auto_global.name = (char*) zend_new_interned_string((char*) variableName, len + 1, 0 TSRMLS_CC);
 	auto_global.name_len = len;
 	auto_global.auto_global_callback = NULL;
-	auto_global.jit = 1;
+#	if DT_PHP_VERSION == 54
+		auto_global.jit = 1;
+#	endif
 	zend_hash_add(CG(auto_globals), variableName, len + 1, &auto_global, sizeof(zend_auto_global), NULL);
 	zend_rebuild_symbol_table();
 
