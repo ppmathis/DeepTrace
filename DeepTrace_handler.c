@@ -20,9 +20,12 @@
 
 #include "php_DeepTrace.h"
 
-// DeepTrace_get_zval_ptr
+#ifdef DEEPTRACE_EXIT_MANIPULATION
+
+/* {{{ DeepTrace_get_zval_ptr
+	Get pointer to zval */
 #if DT_PHP_VERSION == 54
-	// PHP 5.4
+	/* PHP 5.4 */
 	static zval *DeepTrace_get_zval_ptr(int op_type, znode_op *node, zval **freeval, zend_execute_data *execute_data TSRMLS_DC) /* {{{ */
 	{
 		*freeval = NULL;
@@ -48,7 +51,7 @@
 		}
 	}	
 #elif DT_PHP_VERSION == 53
-	// PHP 5.3
+	/* PHP 5.3 */
 	static zval *DeepTrace_get_zval_ptr(znode *node, zval **freeval, zend_execute_data *execute_data TSRMLS_DC)
 	{
 		*freeval = NULL;
@@ -74,13 +77,15 @@
 		}
 	}
 #endif
+/* }}} */
 
-// DeepTrace_exit_handler
+/* {{{ DeepTrace_exit_handler
+	Custom exit handler (opcode hook) */
 int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 {
 	zval *exitMsg, *freeOp, *retval;
 
-	// Check for exit handler
+	/* Check for exit handler */
 	if(DEEPTRACE_G(exitHandler).fci.function_name == NULL) {
 		if(oldExitHandler) {
 			return oldExitHandler(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
@@ -89,24 +94,24 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 		}
 	}
 
-	// Get exit message
+	/* Get exit message */
 	#if DT_PHP_VERSION == 54
-		// PHP 5.4
+		/* PHP 5.4 */
 		exitMsg = DeepTrace_get_zval_ptr(EX(opline)->op1_type, &EX(opline)->op1, &freeOp, execute_data TSRMLS_CC);
 	#elif DT_PHP_VERSION == 53
-		// PHP 5.3
+		/* PHP 5.3 */
 		exitMsg = DeepTrace_get_zval_ptr(&EX(opline)->op1, &freeOp, execute_data TSRMLS_CC);
 	#endif
 	if(exitMsg) zend_fcall_info_argn(&DEEPTRACE_G(exitHandler).fci TSRMLS_CC, 1, &exitMsg);
 
-	// Call user handler
+	/* Call user handler */
 	zend_fcall_info_call(&DEEPTRACE_G(exitHandler).fci, &DEEPTRACE_G(exitHandler).fcc, &retval, NULL TSRMLS_CC);
 	zend_fcall_info_args_clear(&DEEPTRACE_G(exitHandler).fci, 1);
 	
-	// Parse return value
+	/* Parse return value */
 	convert_to_boolean(retval);
 	if(Z_LVAL_P(retval)) {
-		// Call default handler
+		/* Call default handler */
 		zval_ptr_dtor(&retval);
 		if(oldExitHandler) {
 			return oldExitHandler(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
@@ -114,11 +119,11 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 			return ZEND_USER_OPCODE_DISPATCH;
 		}
 	} else {
-		// Call user handler
+		/* Call user handler */
 		zval_ptr_dtor(&retval);
 		EX(opline)++;
 
-		// Throw exception if desired
+		/* Throw exception if desired */
 		if(DEEPTRACE_G(throwException)) {
 			if(exitMsg && Z_TYPE_P(exitMsg) == IS_STRING) {
 				zend_throw_exception(DEEPTRACE_G(exitException), Z_STRVAL_P(exitMsg), -1 TSRMLS_CC);
@@ -134,25 +139,27 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 		return ZEND_USER_OPCODE_CONTINUE;
 	}
 }
+/* }}} */
 
-// DeepTrace_set_handler
+/* {{{ DeepTrace_set_handler
+	Set opcode handler */
 int DeepTrace_set_handler(user_opcode_handler_t opcodeHandler, int opcode, dt_opcode_handler_t *handler, INTERNAL_FUNCTION_PARAMETERS)
 {
 	zend_fcall_info fci;
 	zend_fcall_info_cache fcc;
 
-	// Get parameters
+	/* Get parameters */
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "f",  &fci, &fcc) == FAILURE) {
 		return FAILURE;
 	}
 
-	// Is extension working?
+	/* Is extension working? */
 	if(opcodeHandler != zend_get_user_opcode_handler(opcode)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Conflicting extension detected. Make sure to load as zend extension after other extensions.");
 		return FAILURE;
 	}
 
-	// Set handler
+	/* Set handler */
 	handler->fci = fci;
 	handler->fcc = fcc;
 	Z_ADDREF_P(handler->fci.function_name);
@@ -160,8 +167,10 @@ int DeepTrace_set_handler(user_opcode_handler_t opcodeHandler, int opcode, dt_op
 
 	return SUCCESS;
 }
+/* }}} */
 
-// DeepTrace_free_handler
+/* {{{ DeepTrace_free_handler
+	Unset opcode handler */
 void DeepTrace_free_handler(zend_fcall_info *fci)
 {
 	if(fci->function_name) {
@@ -173,10 +182,10 @@ void DeepTrace_free_handler(zend_fcall_info *fci)
 		fci->object_ptr = NULL;
 	}
 }
+/* }}} */
 
-// dt_set_exit_handler
-// Parameters: string exitHandlerFunction
-// Return value: bool success
+/* {{{ proto bool dt_set_exit_handler(string exitHandlerFunction)
+	Set exit()/die() handler */
 PHP_FUNCTION(dt_set_exit_handler)
 {
 	if(DeepTrace_set_handler(DeepTrace_exit_handler, ZEND_EXIT, &DEEPTRACE_G(exitHandler), INTERNAL_FUNCTION_PARAM_PASSTHRU) == SUCCESS) {
@@ -185,24 +194,25 @@ PHP_FUNCTION(dt_set_exit_handler)
 		RETURN_FALSE;
 	}
 }
+/* }}} */
 
-// dt_throw_exit_exception
-// Parameters: bool throwException
-// Parameters: bool throwException, string exceptionType
-// Return value: bool success
+/* {{{ proto bool dt_throw_exit_exception(bool throwException)
+	Toggle if exception should be thrown after exit hook */
 PHP_FUNCTION(dt_throw_exit_exception)
 {
 	int exceptionTypeLen = 0;
 
-	// Default type name
+	/* Default type name */
 	DEEPTRACE_G(exitExceptionType) = DEEPTRACE_EXIT_EXCEPTION_TYPE;
 
-	// Get parameters
+	/* Get parameters */
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b|s", &DEEPTRACE_G(throwException), &DEEPTRACE_G(exitExceptionType), &exceptionTypeLen) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	// Create exception class
+	/* Create exception class */
 	INIT_OVERLOADED_CLASS_ENTRY_EX(DEEPTRACE_G(exitExceptionClass), DEEPTRACE_G(exitExceptionType), strlen(DEEPTRACE_G(exitExceptionType)), NULL, NULL, NULL, NULL, NULL, NULL);
 	DEEPTRACE_G(exitException) = zend_register_internal_class_ex(&DEEPTRACE_G(exitExceptionClass), zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }
+
+#endif
