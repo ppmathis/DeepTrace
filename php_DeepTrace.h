@@ -40,7 +40,7 @@ extern HashTable *global_auto_globals_table;
 #	define DEEPTRACE_EXIT_EXCEPTION_TYPE "DeepTraceExitException"	/* Specify the default exception name when hooking exit()/die() calls */
 #define DEEPTRACE_CONSTANT_MANIPULATION 							/* Toggle support for constant manipulation */
 #	define DEEPTRACE_FIX_RUN_TIME_CACHE 							/* Toggle custom runtime cache. Should be turned on when working with constants */
-#	define DEEPTRACE_DEBUG_CACHE									/* Toggle debug output related to custom runtime cache */
+//#	define DEEPTRACE_DEBUG_CACHE									/* Toggle debug output related to custom runtime cache */
 #define DEEPTRACE_FUNCTION_MANIPULATION 							/* Toggle support for function manipulation */
 #define DEEPTRACE_CLASS_MANIPULATION 								/* Toggle support for class manipulation */
 #define DEEPTRACE_INCLUDE_MANIPULATION								/* Toggle support for include manipulation */
@@ -175,6 +175,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 	PHP_FUNCTION(dt_remove_constant);
 #	ifdef DEEPTRACE_FIX_RUN_TIME_CACHE
 		PHP_FUNCTION(dt_get_cache_size);
+		PHP_FUNCTION(dt_clear_cache);
 #	endif
 #endif
 #ifdef DEEPTRACE_THREAD_SUPPORT

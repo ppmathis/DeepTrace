@@ -46,6 +46,9 @@ ZEND_EXTENSION();
 
 	ZEND_BEGIN_ARG_INFO(arginfo_dt_get_cache_size, 0)
 	ZEND_END_ARG_INFO()
+
+	ZEND_BEGIN_ARG_INFO(arginfo_dt_clear_cache, 0)
+	ZEND_END_ARG_INFO()
 #endif
 
 #ifdef DEEPTRACE_THREAD_SUPPORT
@@ -138,6 +141,7 @@ const zend_function_entry DeepTrace_functions[] = {
 #		if DT_PHP_VERSION == 54
 #			ifdef DEEPTRACE_FIX_RUN_TIME_CACHE
 				PHP_FE(dt_get_cache_size, arginfo_dt_get_cache_size)
+				PHP_FE(dt_clear_cache, arginfo_dt_clear_cache)
 #			endif
 #		endif
 #	endif
