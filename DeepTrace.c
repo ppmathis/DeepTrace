@@ -262,9 +262,6 @@ PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 #	ifdef DEEPTRACE_CONSTANT_MANIPULATION
 #		if DT_PHP_VERSION == 54
 #			ifdef DEEPTRACE_FIX_RUN_TIME_CACHE
-				/* Unset constant handler */
-				zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, NULL);
-
 				/* Delete runtime cache hashtable */
 				if(DEEPTRACE_G(constantCache)) {
 					zend_hash_apply(DEEPTRACE_G(constantCache), (apply_func_t) DeepTrace_destroy_cache_entries TSRMLS_CC);
