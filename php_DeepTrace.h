@@ -47,6 +47,7 @@ extern HashTable *global_auto_globals_table;
 #define DEEPTRACE_INFO_MANIPULATION 								/* Toggle support for info manipulation */
 #define DEEPTRACE_THREAD_SUPPORT 									/* Toggle support for threads */
 #define DEEPTRACE_CUSTOM_SUPERGLOBALS	 							/* Toggle support for custom superglobals */
+#define DEEPTRACE_METHOD_MANIPULATION								/* Toggle support for method manipulation */
 /* --- END OF DEEPTRACE CONFIGURATION --- */
 
 /* Export module entry point */
@@ -149,7 +150,7 @@ ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 
 /* DeepTrace internal constants */
-#define DEEPTRACE_VERSION "1.3.3"
+#define DEEPTRACE_VERSION "1.4"
 
 #ifdef DEEPTRACE_THREAD_SUPPORT
 #	define DEEPTRACE_PROCTITLE_MAX_LEN 256
@@ -199,6 +200,11 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 #ifdef DEEPTRACE_CUSTOM_SUPERGLOBALS
 	PHP_FUNCTION(dt_get_superglobals);
 #endif
+#ifdef DEEPTRACE_METHOD_MANIPULATION
+	PHP_FUNCTION(dt_add_method);
+	PHP_FUNCTION(dt_rename_method);
+	PHP_FUNCTION(dt_remove_method);
+#endif
 
 /* DeepTrace internal functions */
 #ifdef DEEPTRACE_EXIT_MANIPULATION
@@ -221,5 +227,33 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 #ifdef DEEPTRACE_CUSTOM_SUPERGLOBALS
 	int dt_register_superglobal(char* variableName, int len);
 #endif
+#ifdef DEEPTRACE_METHOD_MANIPULATION
+#	define DT_TEMP_FUNCNAME "__dt_temporary_function__"
 
+	zend_function* dt_get_method_prototype(zend_class_entry *ce, char* func, int func_len TSRMLS_DC);
+	int dt_generate_lambda_method(char *arguments, int argumentsLen, char *phpcode, int phpcodeLen, zend_function **pfe TSRMLS_DC);
+	int dt_fetch_class(char* className, int classLen, zend_class_entry **pce TSRMLS_DC);
+	int dt_fetch_class_int(char* className, int classLen, zend_class_entry **pce TSRMLS_DC);
+	int dt_fetch_class_method(char* className, int classLen, char* methodName, int methodLen, zend_class_entry **pce, zend_function **pfe TSRMLS_DC);
+	int dt_update_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_list args, zend_hash_key* hashKey);
+	int dt_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_list args, zend_hash_key *hashKey);
+
+#	define DT_ADD_MAGIC_METHOD(ce, method, fe) { \
+		if ((strcmp((method), (ce)->name) == 0) || (strcmp((method), "__construct") == 0)) { (ce)->constructor	= (fe); (fe)->common.fn_flags = ZEND_ACC_CTOR; } \
+		else if (strcmp((method), "__destruct") == 0) {	(ce)->destructor	= (fe); (fe)->common.fn_flags = ZEND_ACC_DTOR; } \
+		else if (strcmp((method), "__clone") == 0)  {	(ce)->clone			= (fe); (fe)->common.fn_flags = ZEND_ACC_CLONE; } \
+		else if (strcmp((method), "__get") == 0)		(ce)->__get			= (fe); \
+		else if (strcmp((method), "__set") == 0)		(ce)->__set			= (fe); \
+		else if (strcmp((method), "__call") == 0)		(ce)->__call		= (fe); \
+	}
+
+#	define DT_DEL_MAGIC_METHOD(ce, fe) { \
+		if ((ce)->constructor == (fe))			(ce)->constructor	= NULL; \
+		else if ((ce)->destructor == (fe))		(ce)->destructor	= NULL; \
+		else if ((ce)->clone == (fe))			(ce)->clone			= NULL; \
+		else if ((ce)->__get == (fe))			(ce)->__get			= NULL; \
+		else if ((ce)->__set == (fe))			(ce)->__set			= NULL; \
+		else if ((ce)->__call == (fe))			(ce)->__call		= NULL; \
+	}
+#endif
 #endif

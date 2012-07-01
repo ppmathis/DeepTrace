@@ -31,23 +31,27 @@
 		*freeval = NULL;
 
 		switch (op_type) {
-			case IS_CONST: return node->zv;
-			case IS_VAR: return EX_T(node->var).var.ptr;
-			case IS_TMP_VAR: return (*freeval = &EX_T(node->var).tmp_var);
+			case IS_CONST:
+				return node->zv;
+			case IS_VAR:
+				return EX_T(node->var).var.ptr;
+			case IS_TMP_VAR:
+				return (*freeval = &EX_T(node->var).tmp_var);
 			case IS_CV:
 				{
 				zval ***ret = &execute_data->CVs[node->var];
 				if (!*ret) {
-						zend_compiled_variable *cv = &EG(active_op_array)->vars[node->var];
-						if (zend_hash_quick_find(EG(active_symbol_table), cv->name, cv->name_len+1, cv->hash_value, (void**)ret)==FAILURE) {
-							zend_error(E_NOTICE, "Undefined variable: %s", cv->name);
-							return &EG(uninitialized_zval);
-						}
+					zend_compiled_variable *cv = &EG(active_op_array)->vars[node->var];
+					if (zend_hash_quick_find(EG(active_symbol_table), cv->name, cv->name_len+1, cv->hash_value, (void**)ret)==FAILURE) {
+						zend_error(E_NOTICE, "Undefined variable: %s", cv->name);
+						return &EG(uninitialized_zval);
+					}
 				}
 				return **ret;
 				}
 			case IS_UNUSED:
-			default: return NULL;
+			default:
+				return NULL;
 		}
 	}	
 #elif DT_PHP_VERSION == 53

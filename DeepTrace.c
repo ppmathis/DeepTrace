@@ -99,6 +99,26 @@ ZEND_EXTENSION();
 	ZEND_END_ARG_INFO()
 #endif
 
+#ifdef DEEPTRACE_METHOD_MANIPULATION
+	ZEND_BEGIN_ARG_INFO(arginfo_dt_add_method, 0)
+		ZEND_ARG_INFO(0, "className")
+		ZEND_ARG_INFO(0, "methodName")
+		ZEND_ARG_INFO(0, "arguments")
+		ZEND_ARG_INFO(0, "code")
+	ZEND_END_ARG_INFO()
+
+	ZEND_BEGIN_ARG_INFO(arginfo_dt_rename_method, 0)
+		ZEND_ARG_INFO(0, "className")
+		ZEND_ARG_INFO(0, "methodName")
+		ZEND_ARG_INFO(0, "newName")
+	ZEND_END_ARG_INFO()
+
+	ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_method, 0)
+		ZEND_ARG_INFO(0, "className")
+		ZEND_ARG_INFO(0, "methodName")
+	ZEND_END_ARG_INFO()
+#endif
+
 /* DeepTrace function declaration */
 const zend_function_entry DeepTrace_functions[] = {
 	/* Exit manipulation */
@@ -149,6 +169,13 @@ const zend_function_entry DeepTrace_functions[] = {
 	/* Custom superglobals */
 #	ifdef DEEPTRACE_CUSTOM_SUPERGLOBALS
 		PHP_FE(dt_get_superglobals, arginfo_dt_get_superglobals)
+#	endif
+
+	/* Method manipulation */
+#	ifdef DEEPTRACE_METHOD_MANIPULATION
+		PHP_FE(dt_add_method, arginfo_dt_add_method)
+		PHP_FE(dt_rename_method, arginfo_dt_rename_method)
+		PHP_FE(dt_remove_method, arginfo_dt_remove_method)
 #	endif
 
 	PHP_FE_END
