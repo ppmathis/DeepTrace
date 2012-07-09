@@ -92,6 +92,11 @@ PHP_FUNCTION(dt_remove_include)
 
 	/* Find include in hash map */
 	absolutePath = zend_resolve_path(includeName, len);
+
+	if(!absolutePath) {
+		absolutePath = estrdup(includeName);
+	}
+
 	if(!zend_hash_exists(&EG(included_files), absolutePath, strlen(absolutePath) + 1)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Include %s does not exist.", includeName);
 		efree(absolutePath);
