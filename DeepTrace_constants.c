@@ -294,7 +294,7 @@ PHP_FUNCTION(dt_remove_constant)
 						} else if (CACHED_PTR(EX(opline)->op1.literal->cache_slot)) {
 							ce = CACHED_PTR(EX(opline)->op1.literal->cache_slot);
 						} else {
-							ce = zend_fetch_class_by_name(className, classLen, EX(opline)->op1.literal + 1, EX(opline)->extended_value TSRMLS_CC);
+							ce = zend_fetch_class_by_name(className, classLen - 1, EX(opline)->op1.literal + 1, EX(opline)->extended_value TSRMLS_CC);
 							if (UNEXPECTED(ce == NULL)) {
 								CHECK_EXCEPTION();
 								ZEND_VM_NEXT_OPCODE();

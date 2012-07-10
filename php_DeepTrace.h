@@ -46,7 +46,7 @@ extern HashTable *global_auto_globals_table;
 #define DEEPTRACE_INCLUDE_MANIPULATION								/* Toggle support for include manipulation */
 #define DEEPTRACE_INFO_MANIPULATION 								/* Toggle support for info manipulation */
 #define DEEPTRACE_THREAD_SUPPORT 									/* Toggle support for threads */
-#define DEEPTRACE_CUSTOM_SUPERGLOBALS	 							/* Toggle support for custom superglobals */
+//#define DEEPTRACE_CUSTOM_SUPERGLOBALS	 							/* Toggle support for custom superglobals */
 #define DEEPTRACE_METHOD_MANIPULATION								/* Toggle support for method manipulation */
 /* --- END OF DEEPTRACE CONFIGURATION --- */
 
