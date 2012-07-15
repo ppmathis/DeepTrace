@@ -195,6 +195,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 	PHP_FUNCTION(dt_rename_function);
 	PHP_FUNCTION(dt_remove_function);
 	PHP_FUNCTION(dt_destroy_function_data);
+	PHP_FUNCTION(dt_set_function_variable);
 #endif
 #ifdef DEEPTRACE_CLASS_MANIPULATION
 	PHP_FUNCTION(dt_remove_class);
@@ -207,6 +208,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 	PHP_FUNCTION(dt_add_method);
 	PHP_FUNCTION(dt_rename_method);
 	PHP_FUNCTION(dt_remove_method);
+	PHP_FUNCTION(dt_set_method_variable);
 #endif
 #ifdef DEEPTRACE_DEBUG_MEMORY
 	PHP_FUNCTION(zend_mem_check);

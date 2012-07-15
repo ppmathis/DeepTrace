@@ -376,14 +376,13 @@ PHP_FUNCTION(dt_add_method)
 	func.common.scope = ce;
 	func.common.prototype = dt_get_method_prototype(ce, methodName, methodLen TSRMLS_CC);
 
+	func.common.fn_flags &= ~ZEND_ACC_PPP_MASK;
+
 	if(flags & ZEND_ACC_PRIVATE) {
-		func.common.fn_flags &= ~ZEND_ACC_PPP_MASK;
 		func.common.fn_flags |= ZEND_ACC_PRIVATE;
 	} else if (flags & ZEND_ACC_PROTECTED) {
-		func.common.fn_flags &= ~ZEND_ACC_PPP_MASK;
 		func.common.fn_flags |= ZEND_ACC_PROTECTED;
 	} else {
-		func.common.fn_flags &= ~ZEND_ACC_PPP_MASK;
 		func.common.fn_flags |= ZEND_ACC_PUBLIC;
 	}
 
@@ -559,6 +558,54 @@ PHP_FUNCTION(dt_remove_method)
 	/* Support magic methods and clean up */
 	efree(lowerMethod);
 	DT_DEL_MAGIC_METHOD(ce, fe);
+	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto bool dt_set_method_variable(string className, string functionName, string variableName, mixed value)
+	Sets the value of a static variable inside a class method */
+PHP_FUNCTION(dt_set_method_variable) {
+	char *className, *functionName, *variableName;
+	int classNameLen, functionNameLen, variableNameLen, refcount;
+	zval *value;
+	ulong funcH, variableH;
+	zend_function *func;
+	zend_class_entry *ce;
+	zval **variablePointer;
+	zend_uchar is_ref;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sssz!", &className, &classNameLen, &functionName, &functionNameLen, &variableName, &variableNameLen, &value) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Make function name lowercase */
+	functionName = zend_str_tolower_dup(functionName, functionNameLen);
+
+	/* Get hashs */
+	funcH = zend_inline_hash_func(functionName, functionNameLen + 1);
+	variableH = zend_inline_hash_func(variableName, variableNameLen + 1);
+
+	/* Fetch function */
+	if(dt_fetch_class_method(className, classNameLen, functionName, functionNameLen, &ce, &func TSRMLS_CC) == FAILURE) {
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	if(func->op_array.static_variables == NULL || zend_hash_quick_find(func->op_array.static_variables, variableName, variableNameLen + 1, variableH, (void **) &variablePointer) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Static variable %s does not exist.", variableName);
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	refcount = Z_REFCOUNT_PP(variablePointer);
+	is_ref = Z_ISREF_PP(variablePointer);
+	zval_dtor(*variablePointer);
+	**variablePointer = *value;
+	zval_copy_ctor(*variablePointer);
+	Z_SET_REFCOUNT_PP(variablePointer, refcount);
+	Z_SET_ISREF_TO_PP(variablePointer, is_ref);
+
+	efree(functionName);
 	RETURN_TRUE;
 }
 /* }}} */

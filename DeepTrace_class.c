@@ -99,4 +99,5 @@ PHP_FUNCTION(dt_destroy_class_data)
 	RETURN_TRUE;
 }
 /* }}} */
+
 #endif

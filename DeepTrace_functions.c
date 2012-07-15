@@ -252,4 +252,51 @@ PHP_FUNCTION(dt_rename_function)
 }
 /* }}} */
 
+/* {{{ proto bool dt_set_function_variable(string functionName, string variableName, mixed value)
+	Sets the value of a static variable inside a function */
+PHP_FUNCTION(dt_set_function_variable) {
+	char *functionName, *variableName;
+	int functionNameLen, variableNameLen, refcount;
+	zval *value;
+	ulong funcH, variableH;
+	zend_function *func;
+	zval **variablePointer;
+	zend_uchar is_ref;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz!", &functionName, &functionNameLen, &variableName, &variableNameLen, &value) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Make function name lowercase */
+	functionName = zend_str_tolower_dup(functionName, functionNameLen);
+
+	/* Get hashs */
+	funcH = zend_inline_hash_func(functionName, functionNameLen + 1);
+	variableH = zend_inline_hash_func(variableName, variableNameLen + 1);
+
+	/* Fetch function */
+	if(DeepTrace_fetch_function(functionName, functionNameLen, &func, 0, funcH TSRMLS_CC) == FAILURE) {
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	if(func->op_array.static_variables == NULL || zend_hash_quick_find(func->op_array.static_variables, variableName, variableNameLen + 1, variableH, (void **) &variablePointer) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Static variable %s does not exist.", variableName);
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	refcount = Z_REFCOUNT_PP(variablePointer);
+	is_ref = Z_ISREF_PP(variablePointer);
+	zval_dtor(*variablePointer);
+	**variablePointer = *value;
+	zval_copy_ctor(*variablePointer);
+	Z_SET_REFCOUNT_PP(variablePointer, refcount);
+	Z_SET_ISREF_TO_PP(variablePointer, is_ref);
+
+	efree(functionName);
+	RETURN_TRUE;
+}
+/* }}} */
+
 #endif
