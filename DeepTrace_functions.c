@@ -263,7 +263,7 @@ PHP_FUNCTION(dt_set_function_variable) {
 	zval **variablePointer;
 	zend_uchar is_ref;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz!", &functionName, &functionNameLen, &variableName, &variableNameLen, &value) == FAILURE) {
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz", &functionName, &functionNameLen, &variableName, &variableNameLen, &value) == FAILURE) {
 		RETURN_FALSE;
 	}
 

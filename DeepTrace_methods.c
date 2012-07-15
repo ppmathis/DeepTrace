@@ -574,7 +574,7 @@ PHP_FUNCTION(dt_set_method_variable) {
 	zval **variablePointer;
 	zend_uchar is_ref;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sssz!", &className, &classNameLen, &functionName, &functionNameLen, &variableName, &variableNameLen, &value) == FAILURE) {
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sssz", &className, &classNameLen, &functionName, &functionNameLen, &variableName, &variableNameLen, &value) == FAILURE) {
 		RETURN_FALSE;
 	}
 
