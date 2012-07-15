@@ -27,6 +27,7 @@ zend_function* dt_get_method_prototype(zend_class_entry *ce, char* func, int fun
 	zend_class_entry *pce = ce;
 	zend_function *proto = NULL;
 	char *func_lower;
+	ulong h;
 
 	/* Make function name lowercase */
 	func_lower = zend_str_tolower_dup(func, func_len);
@@ -35,13 +36,17 @@ zend_function* dt_get_method_prototype(zend_class_entry *ce, char* func, int fun
 		return NULL;
 	}
 
+	/* Get hash */
+	h = zend_inline_hash_func(func_lower, func_len+1);
+
 	/* Create prototype */
 	while (pce) {
-		if (zend_hash_find(&pce->function_table, func_lower, func_len+1, (void**) &proto) != FAILURE) {
+		if (zend_hash_quick_find(&pce->function_table, func_lower, func_len+1, h, (void**) &proto) != FAILURE) {
 			break;
 		}
 		pce = pce->parent;
 	}
+
 	if (!pce) {
 		proto = NULL;
 	}
@@ -213,6 +218,7 @@ int dt_update_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_l
 	int fnameLen = va_arg(args, int);
 	zend_function *cfe = NULL;
 	char *fnameLower;
+	ulong h;
 
 	/* Make method name lowercase */
 	fnameLower = zend_str_tolower_dup(fname, fnameLen);
@@ -228,8 +234,11 @@ int dt_update_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_l
 		return ZEND_HASH_APPLY_KEEP;
 	}
 
+	/* Get hash */
+	h = zend_inline_hash_func(fnameLower, fnameLen + 1);
+
 	/* Ignore methods below our level */
-	if(zend_hash_find(&ce->function_table, fnameLower, fnameLen + 1, (void**) &cfe) == SUCCESS) {
+	if(zend_hash_quick_find(&ce->function_table, fnameLower, fnameLen + 1, h, (void**) &cfe) == SUCCESS) {
 		scope = fe->common.scope;
 		if(scope != ancClass) {
 			efree(fnameLower);
@@ -238,14 +247,14 @@ int dt_update_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_l
 	}
 
 	/* Update child class (step 1) */
-	if(cfe && zend_hash_del(&ce->function_table, fnameLower, fnameLen + 1) == FAILURE) {
+	if(cfe && zend_hash_quick_del(&ce->function_table, fnameLower, fnameLen + 1, h) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Error updating child class");
 		efree(fnameLower);
 		return ZEND_HASH_APPLY_KEEP;
 	}
 
 	/* Update child class (step 2) */
-	if(zend_hash_add(&ce->function_table, fnameLower, fnameLen + 1, fe, sizeof(zend_function), NULL) == FAILURE) {
+	if(zend_hash_quick_add(&ce->function_table, fnameLower, fnameLen + 1, h, fe, sizeof(zend_function), NULL) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Error updating child class");
 		efree(fnameLower);
 		return ZEND_HASH_APPLY_KEEP;
@@ -272,6 +281,7 @@ int dt_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_li
 	int fnameLen = va_arg(args, int);
 	zend_function *cfe = NULL;
 	char *fnameLower;
+	ulong h;
 
 	/* Make method name lowercase */
 	fnameLower = zend_str_tolower_dup(fname, fnameLen);
@@ -287,8 +297,11 @@ int dt_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_li
 		return ZEND_HASH_APPLY_KEEP;
 	}
 
+	/* Get hash */
+	h = zend_inline_hash_func(fnameLower, fnameLen + 1);
+
 	/* Ignore methods below our level */
-	if(zend_hash_find(&ce->function_table, fnameLower, fnameLen + 1, (void**) &cfe) == SUCCESS) {
+	if(zend_hash_quick_find(&ce->function_table, fnameLower, fnameLen + 1, h, (void**) &cfe) == SUCCESS) {
 		scope = cfe->common.scope;
 		if(scope != ancClass) {
 			efree(fnameLower);
@@ -303,7 +316,7 @@ int dt_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_li
 	}
 
 	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) dt_clean_children_methods, 4, ancClass, ce, fname, fnameLen);
-	zend_hash_del(&ce->function_table, fnameLower, fnameLen + 1);
+	zend_hash_quick_del(&ce->function_table, fnameLower, fnameLen + 1, h);
 	DT_DEL_MAGIC_METHOD(ce, cfe);
 
 	efree(fnameLower);
@@ -322,6 +335,7 @@ PHP_FUNCTION(dt_add_method)
 	char *lowerMethod;
 	long argc = ZEND_NUM_ARGS();
 	long flags = ZEND_ACC_PUBLIC;
+	ulong h;
 
 	/* Get parameters */
 	if(zend_parse_parameters(argc TSRMLS_CC, "ssss|l", &className, &classLen, &methodName, &methodLen, &arguments, &argumentsLen, &phpcode, &phpcodeLen, &flags) == FAILURE) {
@@ -379,9 +393,12 @@ PHP_FUNCTION(dt_add_method)
 		func.common.fn_flags |= ZEND_ACC_ALLOW_STATIC;
 	}
 
+	/* Get hash */
+	h = zend_inline_hash_func(lowerMethod, methodLen + 1);
+
 	/* Add method to hash tables */
 	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) dt_update_children_methods, 5, ancClass, ce, &func, methodName, methodLen);
-	if(zend_hash_add(&ce->function_table, lowerMethod, methodLen + 1, &func, sizeof(zend_function), NULL) == FAILURE) {
+	if(zend_hash_quick_add(&ce->function_table, lowerMethod, methodLen + 1, h, &func, sizeof(zend_function), NULL) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to add method to class");
 		efree(lowerMethod);
 		RETURN_FALSE;
@@ -395,7 +412,7 @@ PHP_FUNCTION(dt_add_method)
 	}
 
 	/* Locate new method */
-	if(zend_hash_find(&ce->function_table, lowerMethod, methodLen + 1, (void**) &fe) == FAILURE || !fe) {
+	if(zend_hash_quick_find(&ce->function_table, lowerMethod, methodLen + 1, h, (void**) &fe) == FAILURE || !fe) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to locate newly added method");
 		efree(lowerMethod);
 		RETURN_FALSE;
@@ -417,6 +434,7 @@ PHP_FUNCTION(dt_rename_method)
 	zend_class_entry *ce, *ancClass = NULL;
 	zend_function *fe, func;
 	char *newNameLower;
+	ulong h;
 
 	/* Get parameters */
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss", &className, &classLen, &methodName, &methodLen, &newName, &newLen) == FAILURE) {
@@ -443,8 +461,11 @@ PHP_FUNCTION(dt_rename_method)
 	}
 	methodName = zend_str_tolower_dup(methodName, methodLen);
 
+	/* Get hash */
+	h = zend_inline_hash_func(newNameLower, newLen + 1);
+
 	/* Is that method name available? */
-	if(zend_hash_exists(&ce->function_table, newNameLower, newLen + 1)) {
+	if(zend_hash_quick_exists(&ce->function_table, newNameLower, newLen + 1, h)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::%s() already exists", className, newName);
 		efree(newNameLower);
 		RETURN_FALSE;
@@ -461,7 +482,7 @@ PHP_FUNCTION(dt_rename_method)
 	}
 
 	/* Add new method */
-	if(zend_hash_add(&ce->function_table, newNameLower, newLen + 1, &func, sizeof(zend_function), NULL) == FAILURE) {
+	if(zend_hash_quick_add(&ce->function_table, newNameLower, newLen + 1, h, &func, sizeof(zend_function), NULL) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to add new reference to class method");
 		zend_function_dtor(&func);
 		efree(newNameLower);

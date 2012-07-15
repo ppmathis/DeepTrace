@@ -78,6 +78,10 @@ ZEND_EXTENSION();
 	ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_function, 0)
 		ZEND_ARG_INFO(0, "functionName")
 	ZEND_END_ARG_INFO()
+
+	ZEND_BEGIN_ARG_INFO(arginfo_dt_destroy_function_data, 0)
+		ZEND_ARG_INFO(0, "functionName")
+	ZEND_END_ARG_INFO()
 #endif
 
 #ifdef DEEPTRACE_CUSTOM_SUPERGLOBALS
@@ -90,12 +94,8 @@ ZEND_EXTENSION();
 		ZEND_ARG_INFO(0, "className")
 	ZEND_END_ARG_INFO()
 
-	ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_interface, 0)
-		ZEND_ARG_INFO(0, "interfaceName")
-	ZEND_END_ARG_INFO()
-
-	ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_trait, 0)
-		ZEND_ARG_INFO(0, "traitName")
+	ZEND_BEGIN_ARG_INFO(arginfo_dt_destroy_class_data, 0)
+		ZEND_ARG_INFO(0, "className")
 	ZEND_END_ARG_INFO()
 #endif
 
@@ -116,6 +116,15 @@ ZEND_EXTENSION();
 	ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_method, 0)
 		ZEND_ARG_INFO(0, "className")
 		ZEND_ARG_INFO(0, "methodName")
+	ZEND_END_ARG_INFO()
+#endif
+
+#ifdef DEEPTRACE_DEBUG_MEMORY
+	ZEND_BEGIN_ARG_INFO(arginfo_zend_mem_check, 0)
+		ZEND_ARG_INFO(0, "fileName")
+		ZEND_ARG_INFO(0, "line")
+		ZEND_ARG_INFO(0, "origFileName")
+		ZEND_ARG_INFO(0, "origLine")
 	ZEND_END_ARG_INFO()
 #endif
 
@@ -146,13 +155,13 @@ const zend_function_entry DeepTrace_functions[] = {
 #	ifdef DEEPTRACE_FUNCTION_MANIPULATION
 		PHP_FE(dt_rename_function, arginfo_dt_rename_function)
 		PHP_FE(dt_remove_function, arginfo_dt_remove_function)
+		PHP_FE(dt_destroy_function_data, arginfo_dt_destroy_function_data)
 #	endif
 
 	/* Class manipulation */
 #	ifdef DEEPTRACE_CLASS_MANIPULATION
 		PHP_FE(dt_remove_class, arginfo_dt_remove_class)
-		PHP_FE(dt_remove_interface, arginfo_dt_remove_interface)
-		PHP_FE(dt_remove_trait, arginfo_dt_remove_trait)
+		PHP_FE(dt_destroy_class_data, arginfo_dt_destroy_class_data)
 #	endif
 
 	/* Constant manipulation */
@@ -178,6 +187,9 @@ const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_remove_method, arginfo_dt_remove_method)
 #	endif
 
+#	ifdef DEEPTRACE_DEBUG_MEMORY
+		PHP_FE(zend_mem_check, arginfo_zend_mem_check)
+#	endif
 	PHP_FE_END
 };
 

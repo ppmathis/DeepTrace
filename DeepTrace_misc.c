@@ -84,6 +84,7 @@ PHP_FUNCTION(dt_remove_include)
 {
 	char *includeName, *absolutePath;
 	int len;
+	ulong h;
 
 	/* Get include name */
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &includeName, &len) == FAILURE) {
@@ -97,14 +98,17 @@ PHP_FUNCTION(dt_remove_include)
 		absolutePath = estrdup(includeName);
 	}
 
-	if(!zend_hash_exists(&EG(included_files), absolutePath, strlen(absolutePath) + 1)) {
+	len = strlen(absolutePath);
+	h = zend_inline_hash_func(absolutePath, len + 1);
+
+	if(!zend_hash_quick_exists(&EG(included_files), absolutePath, len + 1, h)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Include %s does not exist.", includeName);
 		efree(absolutePath);
 		RETURN_FALSE;
 	}	
 
 	/* Remove include from hash map */
-	if(zend_hash_del(&EG(included_files), absolutePath, strlen(absolutePath) + 1) == FAILURE) {
+	if(zend_hash_quick_del(&EG(included_files), absolutePath, len + 1, h) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove include %s.", includeName);
 		efree(absolutePath);
 		RETURN_FALSE;
@@ -112,6 +116,26 @@ PHP_FUNCTION(dt_remove_include)
 
 	/* Free memory */
 	efree(absolutePath);
+	RETURN_TRUE;
+}
+/* }}} */
+#endif
+
+#ifdef DEEPTRACE_DEBUG_MEMORY
+/* {{{ proto bool zend_mem_check(string fileName, int line, string origFileName, int origLine [, int silent])
+	Run a complete Zend memory check */
+PHP_FUNCTION(zend_mem_check)
+{
+	char *fileName, *origFileName;
+	int fileNameLen, origFileNameLen;
+	uint *line, *origLine;
+	int silent = 0;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "slsl|l", &fileName, &fileNameLen, &line, &origFileName, &origFileNameLen, &origLine, &silent) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	_full_mem_check(silent, fileName, (uint) line, origFileName, (uint) origLine);
 	RETURN_TRUE;
 }
 /* }}} */

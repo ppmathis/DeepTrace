@@ -34,6 +34,10 @@ PHP_FUNCTION(dt_clear_cache)
 				zend_hash_destroy(DEEPTRACE_G(constantCache));
 				FREE_HASHTABLE(DEEPTRACE_G(constantCache));
 				DEEPTRACE_G(constantCache) = NULL;
+
+				/* Allocate new cache hashtable */
+				ALLOC_HASHTABLE(DEEPTRACE_G(constantCache));
+				zend_hash_init(DEEPTRACE_G(constantCache), 4, NULL, NULL, 0);
 			}
 #		endif
 #	endif
@@ -48,6 +52,7 @@ PHP_FUNCTION(dt_remove_constant)
 	char *constName, *lcase;
 	int len;
 	int caseSensitive;
+	ulong constNameH;
 
 	/* Get parameters */
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &constName, &len) == FAILURE) {
@@ -84,18 +89,21 @@ PHP_FUNCTION(dt_remove_constant)
 		constName = constant->name;
 	}
 
+	/* Get hash */
+	constNameH = zend_inline_hash_func(constName, constant->name_len);
+
 #	if DT_PHP_VERSION == 54
 #		ifdef DEEPTRACE_FIX_RUN_TIME_CACHE
 			/* Remove constant from cache */
 			if(DEEPTRACE_G(constantCache)) {
-				zend_hash_del(DEEPTRACE_G(constantCache), constName, constant->name_len);
+				zend_hash_quick_del(DEEPTRACE_G(constantCache), constName, constant->name_len, constNameH);
 			}
 #		endif
 #	endif
 
 
 	/* Delete constant from hashtable */
-	if(zend_hash_del(EG(zend_constants), constName, constant->name_len) == FAILURE) {
+	if(zend_hash_quick_del(EG(zend_constants), constName, constant->name_len, constNameH) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Could not remove constant %s.", constName);
 		if(caseSensitive) efree(constName);
 		RETURN_FALSE;
@@ -111,16 +119,14 @@ PHP_FUNCTION(dt_remove_constant)
 		/* {{{ proto int dt_get_cache_size(void)
 			Returns the Zend cache size of the actual context */
 		PHP_FUNCTION(dt_get_cache_size) {
-			RETVAL_LONG(EG(active_op_array)->last_cache_slot);
-			return;
+			RETURN_LONG(EG(active_op_array)->last_cache_slot);
 		}
 		/* }}} */
 #	elif DT_PHP_VERSION == 53
 		/* {{{ proto int dt_get_cache_size(void)
 			Returns the Zend cache size of the actual context */
 		PHP_FUNCTION(dt_get_cache_size) {
-			RETVAL_LONG(-1);
-			return;
+			RETURN_LONG(-1);
 		}
 		/* }}} */
 #	endif
@@ -145,14 +151,19 @@ PHP_FUNCTION(dt_remove_constant)
 					if (EG(scope) && EG(scope)->name) {
 						int const_name_len;
 						char *const_name;
+						ulong h;
 						ALLOCA_FLAG(use_heap)
-						
+
 						const_name_len = sizeof("\0__CLASS__") + EG(scope)->name_length;
 						const_name = do_alloca(const_name_len, use_heap);
 						memcpy(const_name, "\0__CLASS__", sizeof("\0__CLASS__")-1);
 						zend_str_tolower_copy(const_name + sizeof("\0__CLASS__")-1, EG(scope)->name, EG(scope)->name_length);
-						if (zend_hash_find(EG(zend_constants), const_name, const_name_len, (void**)c) == FAILURE) {
-							zend_hash_add(EG(zend_constants), const_name, const_name_len, (void*)&tmp, sizeof(zend_constant), (void**)c);
+
+						/* Get hash */
+						h = zend_inline_hash_func(const_name, const_name_len);
+
+						if (zend_hash_quick_find(EG(zend_constants), const_name, const_name_len, h, (void**)c) == FAILURE) {
+							zend_hash_quick_add(EG(zend_constants), const_name, const_name_len, h, (void*)&tmp, sizeof(zend_constant), (void**)c);
 							memset(*c, 0, sizeof(zend_constant));
 							Z_STRVAL((**c).value) = estrndup(EG(scope)->name, EG(scope)->name_length);
 							Z_STRLEN((**c).value) = EG(scope)->name_length;
@@ -160,8 +171,13 @@ PHP_FUNCTION(dt_remove_constant)
 						}
 						free_alloca(const_name, use_heap);
 					} else {
-						if (zend_hash_find(EG(zend_constants), "\0__CLASS__", sizeof("\0__CLASS__"), (void**)c) == FAILURE) {
-							zend_hash_add(EG(zend_constants), "\0__CLASS__", sizeof("\0__CLASS__"), (void*)&tmp, sizeof(zend_constant), (void**)c);
+						ulong h;
+
+						/* Get hash */
+						h = zend_inline_hash_func( "\0__CLASS__", sizeof("\0__CLASS__"));
+
+						if (zend_hash_quick_find(EG(zend_constants), "\0__CLASS__", sizeof("\0__CLASS__"), h, (void**)c) == FAILURE) {
+							zend_hash_quick_add(EG(zend_constants), "\0__CLASS__", sizeof("\0__CLASS__"), h, (void*)&tmp, sizeof(zend_constant), (void**)c);
 							memset(*c, 0, sizeof(zend_constant));
 							Z_STRVAL((**c).value) = estrndup("", 0);
 							Z_STRLEN((**c).value) = 0;
@@ -235,6 +251,7 @@ PHP_FUNCTION(dt_remove_constant)
 				int combinedLen;
 				void* cachePtr;
 				zend_constant *c;
+				ulong h;
 
 				/* Get name and length of constant */
 				constName = Z_STRVAL(EX(opline)->op2.literal->constant);
@@ -248,8 +265,11 @@ PHP_FUNCTION(dt_remove_constant)
 
 				/* Get pointer from cache */
 				if(EX(opline)->op1_type == IS_UNUSED) {
+					/* Get hash */
+					h = zend_inline_hash_func(constName, constLen);
+
 					/* Check if constant is cached */
-					if(zend_hash_find(DEEPTRACE_G(constantCache), constName, constLen, (void**) &cachePtr)) {
+					if(zend_hash_quick_find(DEEPTRACE_G(constantCache), constName, constLen, h, (void**) &cachePtr)) {
 						/* Get pointer to constant */
 						c = zend_quick_get_constant(EX(opline)->op2.literal + 1, EX(opline)->extended_value TSRMLS_CC);
 						cachePtr = (void*) c;
@@ -258,7 +278,7 @@ PHP_FUNCTION(dt_remove_constant)
 #						ifdef DEEPTRACE_DEBUG_CACHE
 							zend_printf("[DT Cache - Add] %s @ %d\n", constName, cachePtr);
 #						endif
-						zend_hash_add(DEEPTRACE_G(constantCache), constName, constLen, (void**) &cachePtr, sizeof(void*), NULL);
+						zend_hash_quick_add(DEEPTRACE_G(constantCache), constName, constLen, h, (void**) &cachePtr, sizeof(void*), NULL);
 					} else {
 						/* Get pointer from cache */
 #						ifdef DEEPTRACE_DEBUG_CACHE
@@ -280,8 +300,11 @@ PHP_FUNCTION(dt_remove_constant)
 					combinedLen = classLen + constLen + 1;
 					sprintf(combinedName, "%s%c%s%c", className, '\0', constName, '\0');
 
+					/* Get hash */
+					h = zend_inline_hash_func(combinedName, combinedLen);
+
 					/* Check if constant is cached */
-					if(zend_hash_find(DEEPTRACE_G(constantCache), combinedName, combinedLen, (void**) &cachePtr)) {
+					if(zend_hash_quick_find(DEEPTRACE_G(constantCache), combinedName, combinedLen, h, (void**) &cachePtr)) {
 						/* Get pointer to class */
 						zend_class_entry *ce;
 						zval **value;
@@ -310,7 +333,7 @@ PHP_FUNCTION(dt_remove_constant)
 #						ifdef DEEPTRACE_DEBUG_CACHE
 							zend_printf("[DT Cache - Class Add] %s in %s @ %d\n", constName, className, cachePtr);
 #						endif
-						zend_hash_add(DEEPTRACE_G(constantCache), combinedName, combinedLen, (void**) &cachePtr, sizeof(void*), NULL);
+						zend_hash_quick_add(DEEPTRACE_G(constantCache), combinedName, combinedLen, h, (void**) &cachePtr, sizeof(void*), NULL);
 					} else {
 						/* Get pointer from cache */
 #						ifdef DEEPTRACE_DEBUG_CACHE
