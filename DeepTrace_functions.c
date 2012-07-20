@@ -61,7 +61,7 @@ int DeepTrace_fetch_function(char *funcName, int funcLen, zend_function **funcPt
 				zend_hash_init(DEEPTRACE_G(misplaced_internal_functions), 4, NULL, NULL, 0);
 			}
 			hash_key.nKeyLength = funcLen + 1 ;
-			hash_key.arKey = estrndup(funcName, hash_key.nKeyLength);
+			hash_key.arKey = estrndup(funcName, hash_key.nKeyLength - 1);
 			zend_hash_next_index_insert(DEEPTRACE_G(misplaced_internal_functions), (void*) &hash_key, sizeof(zend_hash_key), NULL);
 		}
 	}
@@ -232,7 +232,7 @@ PHP_FUNCTION(dt_rename_function)
 
 	/* Is user function? */
 	if(func.type == ZEND_USER_FUNCTION) {
-		efree((void *) func.common.function_name);
+		//efree((void *) func.common.function_name);
 		func.common.function_name = estrndup(newFunctionName, newLen);
 	}
 

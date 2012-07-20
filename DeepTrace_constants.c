@@ -308,19 +308,20 @@ PHP_FUNCTION(dt_remove_constant)
 						/* Get pointer to class */
 						zend_class_entry *ce;
 						zval **value;
-						if (CACHED_PTR(EX(opline)->op2.literal->cache_slot)) {
+						/*if (CACHED_PTR(EX(opline)->op2.literal->cache_slot)) {
 							value = CACHED_PTR(EX(opline)->op2.literal->cache_slot);
 							ZVAL_COPY_VALUE(&EX_T(EX(opline)->result.var).tmp_var, *value);
 							zval_copy_ctor(&EX_T(EX(opline)->result.var).tmp_var);
-							CHECK_EXCEPTION();
-							ZEND_VM_NEXT_OPCODE();
-						} else if (CACHED_PTR(EX(opline)->op1.literal->cache_slot)) {
+
+							efree(combinedName);
+							return ZEND_USER_OPCODE_RETURN;
+						} else*/ if (CACHED_PTR(EX(opline)->op1.literal->cache_slot)) {
 							ce = CACHED_PTR(EX(opline)->op1.literal->cache_slot);
 						} else {
 							ce = zend_fetch_class_by_name(className, classLen - 1, EX(opline)->op1.literal + 1, EX(opline)->extended_value TSRMLS_CC);
 							if (UNEXPECTED(ce == NULL)) {
-								CHECK_EXCEPTION();
-								ZEND_VM_NEXT_OPCODE();
+								efree(combinedName);
+								return ZEND_USER_OPCODE_RETURN;
 							}
 							CACHE_PTR(EX(opline)->op1.literal->cache_slot, ce);
 						}
@@ -339,7 +340,7 @@ PHP_FUNCTION(dt_remove_constant)
 #						ifdef DEEPTRACE_DEBUG_CACHE
 							zend_printf("[DT Cache - Class Get] %s in %s @ %d\n", constName, className, cachePtr);
 #						endif
-						cachePtr = *((void**) cachePtr);	
+						cachePtr = *((void**) cachePtr);
 					}
 
 					/* Free constant name */

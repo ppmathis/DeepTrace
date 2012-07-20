@@ -371,7 +371,7 @@ PHP_FUNCTION(dt_add_method)
 	/* Get function pointer and set flags */
 	func = *fe;
 	function_add_ref(&func);
-	efree((void*) func.common.function_name);
+	//efree((void*) func.common.function_name);
 	func.common.function_name = estrndup(methodName, methodLen);
 	func.common.scope = ce;
 	func.common.prototype = dt_get_method_prototype(ce, methodName, methodLen TSRMLS_CC);
@@ -476,8 +476,8 @@ PHP_FUNCTION(dt_rename_method)
 	func = *fe;
 	function_add_ref(&func);
 	if(fe->type == ZEND_USER_FUNCTION) {
-		efree((void*) func.common.function_name);
-		func.common.function_name = estrndup(newName, newLen + 1);
+		//efree((void*) func.common.function_name);
+		func.common.function_name = estrndup(newName, newLen);
 	}
 
 	/* Add new method */
