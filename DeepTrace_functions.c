@@ -24,12 +24,12 @@
 
 /* {{{ DeepTrace_fetch_function
 	Fetch a function */
-int DeepTrace_fetch_function(char *funcName, int funcLen, zend_function **funcPtr, int flag TSRMLS_DC)
+int DeepTrace_fetch_function(char *funcName, int funcLen, zend_function **funcPtr, int flag, ulong h TSRMLS_DC)
 {
 	zend_function *func;
 
 	/* Find function in hashtable */
-	if(zend_hash_find(EG(function_table), funcName, funcLen + 1, (void**) &func)) {
+	if(zend_hash_quick_find(EG(function_table), funcName, funcLen + 1, h, (void**) &func)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function %s() does not exist.", funcName);
 		return FAILURE;
 	}
@@ -50,7 +50,7 @@ int DeepTrace_fetch_function(char *funcName, int funcLen, zend_function **funcPt
 			ALLOC_HASHTABLE(DEEPTRACE_G(replaced_internal_functions));
 			zend_hash_init(DEEPTRACE_G(replaced_internal_functions), 4, NULL, NULL, 0);
 		}
-		zend_hash_add(DEEPTRACE_G(replaced_internal_functions), funcName, funcLen + 1, (void*) func, sizeof(zend_function), NULL);
+		zend_hash_quick_add(DEEPTRACE_G(replaced_internal_functions), funcName, funcLen + 1, h, (void*) func, sizeof(zend_function), NULL);
 
 		if(flag >= DEEPTRACE_FUNCTION_RENAME) {
 			zend_hash_key hash_key;
@@ -60,8 +60,8 @@ int DeepTrace_fetch_function(char *funcName, int funcLen, zend_function **funcPt
 				ALLOC_HASHTABLE(DEEPTRACE_G(misplaced_internal_functions));
 				zend_hash_init(DEEPTRACE_G(misplaced_internal_functions), 4, NULL, NULL, 0);
 			}
-			hash_key.nKeyLength = funcLen + 1;
-			hash_key.arKey = estrndup(funcName, hash_key.nKeyLength);
+			hash_key.nKeyLength = funcLen + 1 ;
+			hash_key.arKey = estrndup(funcName, hash_key.nKeyLength - 1);
 			zend_hash_next_index_insert(DEEPTRACE_G(misplaced_internal_functions), (void*) &hash_key, sizeof(zend_hash_key), NULL);
 		}
 	}
@@ -106,36 +106,73 @@ int DeepTrace_delete_user_functions(void *dest TSRMLS_DC)
 }
 /* }}} */
 
+/* {{{ proto bool dt_destroy_function_data(string functionName)
+	Destroy the data of a function */
+PHP_FUNCTION(dt_destroy_function_data)
+{
+	char *functionName;
+	int len;
+	zend_function *func;
+	ulong h;
+
+	/* Get parameters */
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &functionName, &len) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Make function name lowercase */
+	functionName = zend_str_tolower_dup(functionName, len);
+
+	/* Get hash */
+	h = zend_inline_hash_func(functionName, len + 1);
+
+	if(DeepTrace_fetch_function(functionName, len, &func, 0, h TSRMLS_CC) == FAILURE) {
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	/* Cleanup data */
+	zend_cleanup_function_data_full(func);
+
+	efree(functionName);
+	RETURN_TRUE;
+}
+/* }}} */
+
 /* {{{ proto bool dt_remove_function(string functionName)
 	Remove a system / user function */
 PHP_FUNCTION(dt_remove_function)
 {
 	char *functionName;
 	int len;
+	ulong h;
 
 	/* Get parameters */
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &functionName, &len) == FAILURE) {
 		RETURN_FALSE;
-	} 
+	}
 
 	/* Make function name lowercase */
 	functionName = zend_str_tolower_dup(functionName, len);
 
+	/* Get hash */
+	h = zend_inline_hash_func(functionName, len + 1);
+
 	/* Check if function exists */
-	if(!zend_hash_exists(EG(function_table), functionName, len + 1)) {
+	if(!zend_hash_quick_exists(EG(function_table), functionName, len + 1, h)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function %s does not exist.", functionName);
 		efree(functionName);
 		RETURN_FALSE;
 	}
 
 	/* Do DeepTrace internal stuff */
-	if(DeepTrace_fetch_function(functionName, len, NULL, DEEPTRACE_FUNCTION_REMOVE TSRMLS_CC) == FAILURE) {
+	if(DeepTrace_fetch_function(functionName, len, NULL, DEEPTRACE_FUNCTION_REMOVE, h TSRMLS_CC) == FAILURE) {
 		efree(functionName);
 		RETURN_FALSE;
 	}
 
 	/* Delete function from table */
-	zend_hash_del(EG(function_table), functionName, len + 1);
+	zend_hash_quick_del(EG(function_table), functionName, len + 1, h);
 
 	/* Free memory */
 	efree(functionName);
@@ -150,6 +187,7 @@ PHP_FUNCTION(dt_rename_function)
 	zend_function *oldFunc, func;
 	char *oldFunctionName, *newFunctionName;
 	int oldLen, newLen;
+	ulong newH, oldH;
 
 	/* Get parameters */
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &oldFunctionName, &oldLen, &newFunctionName, &newLen) == FAILURE) {
@@ -160,8 +198,12 @@ PHP_FUNCTION(dt_rename_function)
 	oldFunctionName = zend_str_tolower_dup(oldFunctionName, oldLen);
 	newFunctionName = zend_str_tolower_dup(newFunctionName, newLen);
 
+	/* Get hashs */
+	oldH = zend_inline_hash_func(oldFunctionName, oldLen + 1);
+	newH = zend_inline_hash_func(newFunctionName, newLen + 1);
+
 	/* Check if new function name is free */
-	if(zend_hash_exists(EG(function_table), newFunctionName, newLen + 1)) {
+	if(zend_hash_quick_exists(EG(function_table), newFunctionName, newLen + 1, newH)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "New function name %s() already exists.", newFunctionName);
 		efree(oldFunctionName);
 		efree(newFunctionName);
@@ -169,7 +211,7 @@ PHP_FUNCTION(dt_rename_function)
 	}
 
 	/* Check if old function name exists */
-	if(DeepTrace_fetch_function(oldFunctionName, oldLen, &oldFunc, DEEPTRACE_FUNCTION_RENAME TSRMLS_CC) == FAILURE) {
+	if(DeepTrace_fetch_function(oldFunctionName, oldLen, &oldFunc, DEEPTRACE_FUNCTION_RENAME, oldH TSRMLS_CC) == FAILURE) {
 		efree(oldFunctionName);
 		efree(newFunctionName);
 		RETURN_FALSE;
@@ -180,7 +222,7 @@ PHP_FUNCTION(dt_rename_function)
 	function_add_ref(&func);
 
 	/* Remove old function reference */
-	if(zend_hash_del(EG(function_table), oldFunctionName, oldLen + 1) == FAILURE) {
+	if(zend_hash_quick_del(EG(function_table), oldFunctionName, oldLen + 1, oldH) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove old reference to function %s().", oldFunctionName);
 		zend_function_dtor(&func);
 		efree(oldFunctionName);
@@ -190,12 +232,12 @@ PHP_FUNCTION(dt_rename_function)
 
 	/* Is user function? */
 	if(func.type == ZEND_USER_FUNCTION) {
-		efree((void *) func.common.function_name);
+		//efree((void *) func.common.function_name);
 		func.common.function_name = estrndup(newFunctionName, newLen);
 	}
 
 	/* Add new function reference */
-	if(zend_hash_add(EG(function_table), newFunctionName, newLen + 1, &func, sizeof(zend_function), NULL) == FAILURE) {
+	if(zend_hash_quick_add(EG(function_table), newFunctionName, newLen + 1, newH, &func, sizeof(zend_function), NULL) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not create new reference to function %s().", newFunctionName);
 		zend_function_dtor(&func);
 		efree(oldFunctionName);
@@ -206,6 +248,53 @@ PHP_FUNCTION(dt_rename_function)
 	/* Free memory */
 	efree(oldFunctionName);
 	efree(newFunctionName);
+	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto bool dt_set_function_variable(string functionName, string variableName, mixed value)
+	Sets the value of a static variable inside a function */
+PHP_FUNCTION(dt_set_function_variable) {
+	char *functionName, *variableName;
+	int functionNameLen, variableNameLen, refcount;
+	zval *value;
+	ulong funcH, variableH;
+	zend_function *func;
+	zval **variablePointer;
+	zend_uchar is_ref;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz", &functionName, &functionNameLen, &variableName, &variableNameLen, &value) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Make function name lowercase */
+	functionName = zend_str_tolower_dup(functionName, functionNameLen);
+
+	/* Get hashs */
+	funcH = zend_inline_hash_func(functionName, functionNameLen + 1);
+	variableH = zend_inline_hash_func(variableName, variableNameLen + 1);
+
+	/* Fetch function */
+	if(DeepTrace_fetch_function(functionName, functionNameLen, &func, 0, funcH TSRMLS_CC) == FAILURE) {
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	if(func->op_array.static_variables == NULL || zend_hash_quick_find(func->op_array.static_variables, variableName, variableNameLen + 1, variableH, (void **) &variablePointer) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Static variable %s does not exist.", variableName);
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	refcount = Z_REFCOUNT_PP(variablePointer);
+	is_ref = Z_ISREF_PP(variablePointer);
+	zval_dtor(*variablePointer);
+	**variablePointer = *value;
+	zval_copy_ctor(*variablePointer);
+	Z_SET_REFCOUNT_PP(variablePointer, refcount);
+	Z_SET_ISREF_TO_PP(variablePointer, is_ref);
+
+	efree(functionName);
 	RETURN_TRUE;
 }
 /* }}} */

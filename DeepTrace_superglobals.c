@@ -44,8 +44,13 @@ PHP_FUNCTION(dt_get_superglobals) {
 /* {{{ dt_register_superglobal
 	Register a new superglobal */
 int dt_register_superglobal(char* variableName, int len) {
+	ulong h;
+
+	/* Get hash */
+	h = zend_inline_hash_func(variableName, len + 1);
+
 	/* Check if already registered */
-	if(zend_hash_exists(CG(auto_globals), variableName, len + 1)) {
+	if(zend_hash_quick_exists(CG(auto_globals), variableName, len + 1, h)) {
 		return 0;
 	}
 
@@ -58,7 +63,7 @@ int dt_register_superglobal(char* variableName, int len) {
 #	if DT_PHP_VERSION == 54
 		auto_global.jit = 1;
 #	endif
-	zend_hash_add(CG(auto_globals), variableName, len + 1, &auto_global, sizeof(zend_auto_global), NULL);
+	zend_hash_quick_add(CG(auto_globals), variableName, len + 1, h, &auto_global, sizeof(zend_auto_global), NULL);
 	zend_rebuild_symbol_table();
 
 	return 1;
