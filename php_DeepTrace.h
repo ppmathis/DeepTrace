@@ -46,8 +46,11 @@ extern HashTable *global_auto_globals_table;
 #define DEEPTRACE_INCLUDE_MANIPULATION								/* Toggle support for include manipulation */
 #define DEEPTRACE_INFO_MANIPULATION 								/* Toggle support for info manipulation */
 #define DEEPTRACE_THREAD_SUPPORT 									/* Toggle support for threads */
-#define DEEPTRACE_CUSTOM_SUPERGLOBALS	 							/* Toggle support for custom superglobals */
+//#define DEEPTRACE_CUSTOM_SUPERGLOBALS	 							/* Toggle support for custom superglobals */
 #define DEEPTRACE_METHOD_MANIPULATION								/* Toggle support for method manipulation */
+#if ZEND_DEBUG
+#	define DEEPTRACE_DEBUG_MEMORY									/* Toggle support for memory debugging */
+#endif
 /* --- END OF DEEPTRACE CONFIGURATION --- */
 
 /* Export module entry point */
@@ -150,7 +153,7 @@ ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 
 /* DeepTrace internal constants */
-#define DEEPTRACE_VERSION "1.4"
+#define DEEPTRACE_VERSION "1.4.2"
 
 #ifdef DEEPTRACE_THREAD_SUPPORT
 #	define DEEPTRACE_PROCTITLE_MAX_LEN 256
@@ -191,11 +194,12 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 #ifdef DEEPTRACE_FUNCTION_MANIPULATION
 	PHP_FUNCTION(dt_rename_function);
 	PHP_FUNCTION(dt_remove_function);
+	PHP_FUNCTION(dt_destroy_function_data);
+	PHP_FUNCTION(dt_set_function_variable);
 #endif
 #ifdef DEEPTRACE_CLASS_MANIPULATION
 	PHP_FUNCTION(dt_remove_class);
-	PHP_FUNCTION(dt_remove_interface);
-	PHP_FUNCTION(dt_remove_trait);
+	PHP_FUNCTION(dt_destroy_class_data);
 #endif
 #ifdef DEEPTRACE_CUSTOM_SUPERGLOBALS
 	PHP_FUNCTION(dt_get_superglobals);
@@ -204,6 +208,10 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 	PHP_FUNCTION(dt_add_method);
 	PHP_FUNCTION(dt_rename_method);
 	PHP_FUNCTION(dt_remove_method);
+	PHP_FUNCTION(dt_set_method_variable);
+#endif
+#ifdef DEEPTRACE_DEBUG_MEMORY
+	PHP_FUNCTION(zend_mem_check);
 #endif
 
 /* DeepTrace internal functions */
