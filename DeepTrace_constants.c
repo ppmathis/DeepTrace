@@ -308,20 +308,21 @@ PHP_FUNCTION(dt_remove_constant)
 						/* Get pointer to class */
 						zend_class_entry *ce;
 						zval **value;
-						/*if (CACHED_PTR(EX(opline)->op2.literal->cache_slot)) {
+						if (CACHED_PTR(EX(opline)->op2.literal->cache_slot)) {
 							value = CACHED_PTR(EX(opline)->op2.literal->cache_slot);
+
 							ZVAL_COPY_VALUE(&EX_T(EX(opline)->result.var).tmp_var, *value);
 							zval_copy_ctor(&EX_T(EX(opline)->result.var).tmp_var);
 
 							efree(combinedName);
-							return ZEND_USER_OPCODE_RETURN;
-						} else*/ if (CACHED_PTR(EX(opline)->op1.literal->cache_slot)) {
+							return ZEND_USER_OPCODE_DISPATCH;
+						} else if (CACHED_PTR(EX(opline)->op1.literal->cache_slot)) {
 							ce = CACHED_PTR(EX(opline)->op1.literal->cache_slot);
 						} else {
 							ce = zend_fetch_class_by_name(className, classLen - 1, EX(opline)->op1.literal + 1, EX(opline)->extended_value TSRMLS_CC);
 							if (UNEXPECTED(ce == NULL)) {
 								efree(combinedName);
-								return ZEND_USER_OPCODE_RETURN;
+								return ZEND_USER_OPCODE_DISPATCH;
 							}
 							CACHE_PTR(EX(opline)->op1.literal->cache_slot, ce);
 						}
