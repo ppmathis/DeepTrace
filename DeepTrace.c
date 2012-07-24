@@ -130,6 +130,12 @@ ZEND_EXTENSION();
 		ZEND_ARG_INFO(0, "variableName")
 		ZEND_ARG_INFO(0, "value")
 	ZEND_END_ARG_INFO()
+
+#	if DT_PHP_VERSION == 54
+		ZEND_BEGIN_ARG_INFO(arginfo_dt_fix_static_method_calls, 0)
+			ZEND_ARG_INFO(0, "state")
+		ZEND_END_ARG_INFO()
+#	endif
 #endif
 
 #ifdef DEEPTRACE_DEBUG_MEMORY
@@ -200,6 +206,10 @@ const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_rename_method, arginfo_dt_rename_method)
 		PHP_FE(dt_remove_method, arginfo_dt_remove_method)
 		PHP_FE(dt_set_method_variable, arginfo_dt_set_method_variable)
+
+#		if DT_PHP_VERSION == 54
+			PHP_FE(dt_fix_static_method_calls, arginfo_dt_fix_static_method_calls)
+#		endif
 #	endif
 
 #	ifdef DEEPTRACE_DEBUG_MEMORY
@@ -246,6 +256,13 @@ void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 #			endif
 #		endif
 #	endif
+
+	/* Method manipulation */
+#	ifdef DEEPTRACE_METHOD_MANIPULATION
+#		if DT_PHP_VERSION == 54
+			DEEPTRACE_G(fixStaticMethodCalls) = 1;
+#		endif
+#	endif
 }
 /* }}} */
 
@@ -274,6 +291,13 @@ PHP_MINIT_FUNCTION(DeepTrace)
 #			ifdef DEEPTRACE_FIX_RUN_TIME_CACHE
 				zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, DeepTrace_constant_handler);
 #			endif
+#		endif
+#	endif
+
+	/* Fix static method calls */
+#	ifdef DEEPTRACE_METHOD_MANIPULATION
+#		if DT_PHP_VERSION == 54
+			zend_set_user_opcode_handler(ZEND_INIT_STATIC_METHOD_CALL, DeepTrace_static_method_call_handler);
 #		endif
 #	endif
 

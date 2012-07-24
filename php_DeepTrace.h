@@ -149,6 +149,13 @@ ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 			HashTable *constantCache;
 		#endif
 # 	endif
+
+#	ifdef DEEPTRACE_METHOD_MANIPULATION
+#		if DT_PHP_VERSION == 54
+		/* Fix static method calls */
+		zend_bool fixStaticMethodCalls;
+#		endif
+#	endif
 ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 
@@ -209,6 +216,9 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 	PHP_FUNCTION(dt_rename_method);
 	PHP_FUNCTION(dt_remove_method);
 	PHP_FUNCTION(dt_set_method_variable);
+#	if DT_PHP_VERSION == 54
+		PHP_FUNCTION(dt_fix_static_method_calls);
+#	endif
 #endif
 #ifdef DEEPTRACE_DEBUG_MEMORY
 	PHP_FUNCTION(zend_mem_check);
@@ -245,6 +255,10 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
 	int dt_fetch_class_method(char* className, int classLen, char* methodName, int methodLen, zend_class_entry **pce, zend_function **pfe TSRMLS_DC);
 	int dt_update_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_list args, zend_hash_key* hashKey);
 	int dt_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs, va_list args, zend_hash_key *hashKey);
+
+#	if DT_PHP_VERSION == 54
+		int DeepTrace_static_method_call_handler(ZEND_OPCODE_HANDLER_ARGS);
+#	endif
 
 #	define DT_ADD_MAGIC_METHOD(ce, method, fe) { \
 		if ((strcmp((method), (ce)->name) == 0) || (strcmp((method), "__construct") == 0)) { (ce)->constructor	= (fe); (fe)->common.fn_flags = ZEND_ACC_CTOR; } \

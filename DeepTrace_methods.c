@@ -564,7 +564,8 @@ PHP_FUNCTION(dt_remove_method)
 
 /* {{{ proto bool dt_set_method_variable(string className, string functionName, string variableName, mixed value)
 	Sets the value of a static variable inside a class method */
-PHP_FUNCTION(dt_set_method_variable) {
+PHP_FUNCTION(dt_set_method_variable)
+{
 	char *className, *functionName, *variableName;
 	int classNameLen, functionNameLen, variableNameLen, refcount;
 	zval *value;
@@ -609,4 +610,32 @@ PHP_FUNCTION(dt_set_method_variable) {
 	RETURN_TRUE;
 }
 /* }}} */
+
+#if DT_PHP_VERSION == 54
+	/* {{{ dt_static_method_call_handler
+		Handles static method calls to fix dead cache pointers */
+	int DeepTrace_static_method_call_handler(ZEND_OPCODE_HANDLER_ARGS)
+	{
+		if(DEEPTRACE_G(fixStaticMethodCalls)) {
+			printf("Cache fix on.\n");
+			EG(active_op_array)->run_time_cache[EX(opline)->op1.literal->cache_slot] = 0;
+			EG(active_op_array)->run_time_cache[EX(opline)->op2.literal->cache_slot] = 0;
+		}
+	    return ZEND_USER_OPCODE_DISPATCH;
+	}
+	/* }}} */
+
+	/* {{{ proto void dt_fix_static_method_calls(boolean state)
+		Fix dead cache pointers related to static methods */
+	PHP_FUNCTION(dt_fix_static_method_calls)
+	{
+		/* Get parameters */
+		if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &DEEPTRACE_G(fixStaticMethodCalls)) == FAILURE) {
+			RETURN_FALSE;
+		}
+
+		RETURN_TRUE;
+	}
+	/* }}} */
+#endif
 #endif
