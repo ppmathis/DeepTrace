@@ -298,6 +298,7 @@ PHP_MINIT_FUNCTION(DeepTrace)
 #	ifdef DEEPTRACE_METHOD_MANIPULATION
 #		if DT_PHP_VERSION == 54
 			zend_set_user_opcode_handler(ZEND_INIT_STATIC_METHOD_CALL, DeepTrace_static_method_call_handler);
+			zend_set_user_opcode_handler(ZEND_FETCH_CLASS, DeepTrace_static_method_call_handler);
 #		endif
 #	endif
 
