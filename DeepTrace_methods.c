@@ -617,7 +617,6 @@ PHP_FUNCTION(dt_set_method_variable)
 	int DeepTrace_static_method_call_handler(ZEND_OPCODE_HANDLER_ARGS)
 	{
 		if(DEEPTRACE_G(fixStaticMethodCalls)) {
-			printf("Cache fix on.\n");
 			EG(active_op_array)->run_time_cache[EX(opline)->op1.literal->cache_slot] = 0;
 			EG(active_op_array)->run_time_cache[EX(opline)->op2.literal->cache_slot] = 0;
 		}
