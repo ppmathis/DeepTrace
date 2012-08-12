@@ -165,6 +165,11 @@ PHP_FUNCTION(dt_remove_function)
 		RETURN_FALSE;
 	}
 
+	/* Kill autoloader */
+	if(len == sizeof("__autoload") - 1 && !strcmp(functionName, "__autoload")) {
+		EG(autoload_func) = NULL;
+	}
+
 	/* Do DeepTrace internal stuff */
 	if(DeepTrace_fetch_function(functionName, len, NULL, DEEPTRACE_FUNCTION_REMOVE, h TSRMLS_CC) == FAILURE) {
 		efree(functionName);
