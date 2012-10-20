@@ -108,10 +108,14 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 	#endif
 	if(exitMsg) zend_fcall_info_argn(&DEEPTRACE_G(exitHandler).fci TSRMLS_CC, 1, &exitMsg);
 
+	Z_ADDREF_P(exitMsg);
+
 	/* Call user handler */
 	zend_fcall_info_call(&DEEPTRACE_G(exitHandler).fci, &DEEPTRACE_G(exitHandler).fcc, &retval, NULL TSRMLS_CC);
 	zend_fcall_info_args_clear(&DEEPTRACE_G(exitHandler).fci, 1);
-	
+
+	Z_DELREF_P(exitMsg);
+
 	/* Parse return value */
 	convert_to_boolean(retval);
 	if(Z_LVAL_P(retval)) {
