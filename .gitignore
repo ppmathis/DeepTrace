@@ -5,3 +5,4 @@ include.php
 log.txt
 run.sh
 test.sh
+.*

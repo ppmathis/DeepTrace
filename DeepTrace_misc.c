@@ -92,7 +92,7 @@ PHP_FUNCTION(dt_remove_include)
 	}
 
 	/* Find include in hash map */
-	absolutePath = zend_resolve_path(includeName, len);
+	absolutePath = zend_resolve_path(includeName, len TSRMLS_CC);
 
 	if(!absolutePath) {
 		absolutePath = estrdup(includeName);

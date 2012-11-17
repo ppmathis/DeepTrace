@@ -260,7 +260,7 @@ void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 	/* Method manipulation */
 #	ifdef DEEPTRACE_METHOD_MANIPULATION
 #		if DT_PHP_VERSION == 54
-			DEEPTRACE_G(fixStaticMethodCalls) = 1;
+			globals->fixStaticMethodCalls = 1;
 #		endif
 #	endif
 }
@@ -408,6 +408,7 @@ PHP_MINFO_FUNCTION(DeepTrace)
 	Zend startup function */
 int DeepTrace_zend_startup(zend_extension *extension)
 {
+	TSRMLS_FETCH();
 #	ifdef DEEPTRACE_CONSTANT_MANIPULATION
 		/* Disable constant substitution */
 		CG(compiler_options) |= ZEND_COMPILE_NO_CONSTANT_SUBSTITUTION;

@@ -132,7 +132,7 @@ PHP_FUNCTION(dt_destroy_function_data)
 	}
 
 	/* Cleanup data */
-	zend_cleanup_function_data_full(func);
+	zend_cleanup_function_data_full(func TSRMLS_CC);
 
 	efree(functionName);
 	RETURN_TRUE;
