@@ -25,7 +25,6 @@
 
 /* Declare module globals */
 ZEND_DECLARE_MODULE_GLOBALS(DeepTrace);
-ZEND_EXTENSION();
 
 /* DeepTrace argument info */
 #ifdef DEEPTRACE_EXIT_MANIPULATION
@@ -433,6 +432,11 @@ zend_module_entry DeepTrace_module_entry = {
 };
 
 /* DeepTrace zend extension entry */
+#ifndef ZEND_EXT_API
+#	define ZEND_EXT_API ZEND_DLEXPORT
+#endif
+ZEND_EXTENSION();
+
 zend_extension zend_extension_entry = {
 	"DeepTrace",
 	DEEPTRACE_VERSION,
@@ -444,3 +448,7 @@ zend_extension zend_extension_entry = {
 	NULL, NULL, NULL, NULL, NULL,
 	STANDARD_ZEND_EXTENSION_PROPERTIES
 };
+
+#ifdef COMPILE_DL_DEEPTRACE
+	ZEND_GET_MODULE(DeepTrace)
+#endif

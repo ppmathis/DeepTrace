@@ -66,16 +66,6 @@ extern zend_module_entry DeepTrace_module_entry;
 #	define PHP_DEEPTRACE_API
 #endif
 
-/* Zend extension API */
-#ifndef ZEND_EXT_API
-#	define ZEND_EXT_API ZEND_DLEXPORT
-#endif
-
-/* Compile DeepTrace */
-/*#ifdef COMPILE_DL_DEEPTRACE
-	ZEND_GET_MODULE(DeepTrace)
-#endif*/
-
 /* Thread safety */
 #ifdef ZTS
 #	include "TSRM.h"

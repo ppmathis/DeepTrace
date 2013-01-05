@@ -7,7 +7,7 @@ Removing traits
 trait DeepTrace_Test {
 	public function DeepTrace_Test_function() {}
 }
-dt_remove_trait('DeepTrace_Test');
+dt_remove_class('DeepTrace_Test');
 if(!trait_exists('DeepTrace_Test')) {
 	echo 'Removed trait DeepTrace_Test';
 } else {

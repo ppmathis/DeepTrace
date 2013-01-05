@@ -7,7 +7,7 @@ Removing interfaces
 interface DeepTrace_Test {
 	public function DeepTrace_Test_function();
 }
-dt_remove_interface('DeepTrace_Test');
+dt_remove_class('DeepTrace_Test');
 if(!interface_exists('DeepTrace_Test')) {
 	echo 'Removed interface DeepTrace_Test';
 } else {
