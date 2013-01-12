@@ -237,7 +237,7 @@ PHP_FUNCTION(dt_rename_function)
 
 	/* Is user function? */
 	if(func.type == ZEND_USER_FUNCTION) {
-		//efree((void *) func.common.function_name);
+		efree((void *) func.common.function_name);
 		func.common.function_name = estrndup(newFunctionName, newLen);
 	}
 
