@@ -135,6 +135,8 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 
 		/* Throw exception if desired */
 		if(DEEPTRACE_G(throwException)) {
+			DEEPTRACE_G(exitException)->parent = zend_exception_get_default(TSRMLS_C);
+
 			if(exitMsg && Z_TYPE_P(exitMsg) == IS_STRING) {
 				zend_throw_exception(DEEPTRACE_G(exitException), Z_STRVAL_P(exitMsg), -1 TSRMLS_CC);
 			} else if (exitMsg) {
@@ -143,6 +145,9 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 			} else {
 				zend_throw_exception(DEEPTRACE_G(exitException), "", -1 TSRMLS_CC);
 			}
+
+			DEEPTRACE_G(exitException)->parent = NULL;
+
 			return ZEND_USER_OPCODE_CONTINUE;
 		}
 
@@ -222,7 +227,7 @@ PHP_FUNCTION(dt_throw_exit_exception)
 
 	/* Create exception class */
 	INIT_OVERLOADED_CLASS_ENTRY_EX(DEEPTRACE_G(exitExceptionClass), DEEPTRACE_G(exitExceptionType), strlen(DEEPTRACE_G(exitExceptionType)), NULL, NULL, NULL, NULL, NULL, NULL);
-	DEEPTRACE_G(exitException) = zend_register_internal_class_ex(&DEEPTRACE_G(exitExceptionClass), zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	DEEPTRACE_G(exitException) = zend_register_internal_class_ex(&DEEPTRACE_G(exitExceptionClass), NULL, NULL TSRMLS_CC);
 }
 
 #endif
