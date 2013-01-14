@@ -1,142 +1,84 @@
 /*
-	+-----------------------------------------------------------------------+
-	| DeepTrace ( Homepage: https://www.snapserv.net/ )					 	|
-	+-----------------------------------------------------------------------+
-	| Copyright (c) 2012 P. Mathis (pmathis@snapserv.net)                   |
-	+-----------------------------------------------------------------------+
-	| License info (CC BY-NC-SA 3.0)										|
-	|																		|
-	| This code is licensed via a Creative Commons Licence:					|
-	| http://creativecommons.org/licenses/by-nc-sa/3.0/						|
-	| Means:	- You may alter the code, but have to give the changes back |
-	|			- You may not use this work for commercial purposes			|
-	|			- You must attribute the work in the manner specified by	|
-	|				the author or licensor.									|
-	+-----------------------------------------------------------------------+
-	| If you like to use this code commercially,							|
-	| please contact pmathis@snapserv.net									|
-	+-----------------------------------------------------------------------+
-*/
+ * +------------------------------------------------------------------------+
+ * | DeepTrace (Website: http://www.snapserv.net/)							|
+ * +------------------------------------------------------------------------+
+ * | Copyright (c) 2012-2013 	P. Mathis (pmathis@snapserv.net)			|
+ * |							Y. Khalil (dev@pp3345.net)					|
+ * +------------------------------------------------------------------------+
+ * | Licensed under the Apache License, Version 2.0 (the "License");		|
+ * | you may not use this file except in compliance with the License.		|
+ * | You may obtain a copy of the License at								|
+ * |																		|
+ * |	http://www.apache.org/licenses/LICENSE-2.0							|
+ * |																		|
+ * | Unless required by applicable law or agreed to in writing, software	|
+ * | distributed under the License is distributed on an "AS IS" BASIS,		|
+ * | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or		|
+ * | implied. See the License for the specific language governing 			|
+ * | permissions and limitations under the License.							|
+ * +------------------------------------------------------------------------+
+ */
 
 #include "php_DeepTrace.h"
 
-#ifdef DEEPTRACE_THREAD_SUPPORT
-/* {{{ proto bool dt_set_proctitle(string processTitle)
-	Set the process title of the current process / thread */
+/* {{{ setproctitle */
+#ifndef DEEPTRACE_SYSTEM_PROVIDES_SETPROCTITLE
+static zend_bool setproctitle(char *title, int title_len)
+{
+	char buffer[DEEPTRACE_PROCTITLE_MAX_LEN];
+
+	/* When there is no argv0 available, we can not do anything. */
+	if(!DEEPTRACE_G(argv0)) {
+		return FAILURE;
+	}
+
+	/* Truncate title if longer than buffer */
+	if(title_len >= (DEEPTRACE_PROCTITLE_MAX_LEN - 1)) {
+		title_len = DEEPTRACE_PROCTITLE_MAX_LEN - 1;
+	}
+
+	/* Copy string into buffer and output it into argv0 */
+	memset(buffer, 0x20, DEEPTRACE_PROCTITLE_MAX_LEN);
+	buffer[DEEPTRACE_PROCTITLE_MAX_LEN - 1] = '\0';
+	memcpy(buffer, title, title_len);
+	snprintf(DEEPTRACE_G(argv0), DEEPTRACE_PROCTITLE_MAX_LEN, "%s", buffer);
+
+	return SUCCESS;
+}
+#endif
+/* }}} */
+
+/* {{{ PHP_FUNCTION(dt_set_proctitle) */
 PHP_FUNCTION(dt_set_proctitle)
 {
-	char *procTitle;
-	int len;
+	DEEPTRACE_DECL_STRING_PARAM(title);
 
-	/* Get parameters */
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &procTitle, &len) == FAILURE) {
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(title)) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	/* Set process title */
-	#ifdef DEEPTRACE_SYSTEM_HAS_SETPROCTITLE
-		/* The direct way (recommended) */
-		setproctitle("%s", procTitle);
-	#else
-		/* Declare buffer */
-		char buffer[DEEPTRACE_PROCTITLE_MAX_LEN];
-
-		/* Check for argv0 */
-		if(!DEEPTRACE_G(argv0)) RETURN_FALSE;
-
-		/* The argv0 workaround */
-		memset(buffer, 0x20, DEEPTRACE_PROCTITLE_MAX_LEN);
-		if(len >= (DEEPTRACE_PROCTITLE_MAX_LEN - 1)) {
-			len = DEEPTRACE_PROCTITLE_MAX_LEN - 1;
-		}
-		buffer[DEEPTRACE_PROCTITLE_MAX_LEN - 1] = '\0';
-		memcpy(buffer, procTitle, len);
-		snprintf(DEEPTRACE_G(argv0), DEEPTRACE_PROCTITLE_MAX_LEN, "%s", buffer);
-	#endif
-
-	RETURN_TRUE;
+#ifndef DEEPTRACE_SYSTEM_PROVIDES_SETPROCTITLE
+	/* Local setproctitle function if there is no native call */
+	if(setproctitle(title, title_len) == SUCCESS) RETURN_TRUE;
+	RETURN_FALSE;
+#else
+	/* Use the native call when it is available */
+	if(setproctitle("%s", title)) RETURN_TRUE;
+	RETURN_FALSE;
+#endif
 }
 /* }}} */
-#endif
 
-#ifdef DEEPTRACE_INFO_MANIPULATION
-/* {{{ proto bool dt_show_plain_info(bool textOnly)
-	Set the phpinfo output mode */
-PHP_FUNCTION(dt_show_plain_info)
+/* {{{ PHP_FUNCTION(dt_phpinfo_mode) */
+PHP_FUNCTION(dt_phpinfo_mode)
 {
-	/* Get parameters */
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &DEEPTRACE_G(infoMode)) == FAILURE) {
+	zend_bool phpinfoMode;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &phpinfoMode) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	/* Set info mode */
-	sapi_module.phpinfo_as_text = DEEPTRACE_G(infoMode);
-
+	sapi_module.phpinfo_as_text = phpinfoMode;
 	RETURN_TRUE;
 }
 /* }}} */
-#endif
-
-#ifdef DEEPTRACE_INCLUDE_MANIPULATION
-/* {{{ proto bool dt_remove_include(string includeName)
-	Remove a include in Zend */
-PHP_FUNCTION(dt_remove_include)
-{
-	char *includeName, *absolutePath;
-	int len;
-	ulong h;
-
-	/* Get include name */
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &includeName, &len) == FAILURE) {
-		RETURN_FALSE;
-	}
-
-	/* Find include in hash map */
-	absolutePath = zend_resolve_path(includeName, len TSRMLS_CC);
-
-	if(!absolutePath) {
-		absolutePath = estrdup(includeName);
-	}
-
-	len = strlen(absolutePath);
-	h = zend_inline_hash_func(absolutePath, len + 1);
-
-	if(!zend_hash_quick_exists(&EG(included_files), absolutePath, len + 1, h)) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Include %s does not exist.", includeName);
-		efree(absolutePath);
-		RETURN_FALSE;
-	}	
-
-	/* Remove include from hash map */
-	if(zend_hash_quick_del(&EG(included_files), absolutePath, len + 1, h) == FAILURE) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove include %s.", includeName);
-		efree(absolutePath);
-		RETURN_FALSE;
-	}
-
-	/* Free memory */
-	efree(absolutePath);
-	RETURN_TRUE;
-}
-/* }}} */
-#endif
-
-#ifdef DEEPTRACE_DEBUG_MEMORY
-/* {{{ proto bool zend_mem_check(string fileName, int line, string origFileName, int origLine [, int silent])
-	Run a complete Zend memory check */
-PHP_FUNCTION(zend_mem_check)
-{
-	char *fileName, *origFileName;
-	int fileNameLen, origFileNameLen;
-	uint *line, *origLine;
-	int silent = 0;
-
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "slsl|l", &fileName, &fileNameLen, &line, &origFileName, &origFileNameLen, &origLine, &silent) == FAILURE) {
-		RETURN_FALSE;
-	}
-
-	_full_mem_check(silent, fileName, (uint) line, origFileName, (uint) origLine);
-	RETURN_TRUE;
-}
-/* }}} */
-#endif
