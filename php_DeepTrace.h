@@ -28,6 +28,7 @@
 #endif
 
 #include "php.h"
+#include "zend_exceptions.h"
 #include "zend_extensions.h"
 #include "SAPI.h"
 
@@ -36,10 +37,10 @@ extern zend_module_entry DeepTrace_module_entry;
 #define phpext_DeepTrace_ptr &DeepTrace_module_entry
 
 /* Macro for exporting DeepTrace API functions to other extensions  */
-#ifdef PHP_WIN32
-#define PHP_DEEPTRACE_API __declspec(dllexport)
-#elif defined(__GNUC__) && __GNUC__ >= 4
+#if defined(__GNUC__) && __GNUC__ >= 4
 #define PHP_DEEPTRACE_API __attribute__ ((visibility("default")))
+#else
+#define PHP_DEEPTRACE_API
 #endif
 
 /* Thread-safety for module globals */
@@ -50,6 +51,11 @@ extern zend_module_entry DeepTrace_module_entry;
 #define DEEPTRACE_G(v) (DeepTrace_globals.v)
 #endif
 
+/* Adjust some zend macros */
+#undef EX
+#define EX(element) execute_data->element
+#define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
+
 /* Declare module entry and exit points */
 PHP_MINIT_FUNCTION(DeepTrace);
 PHP_MSHUTDOWN_FUNCTION(DeepTrace);
@@ -59,33 +65,57 @@ PHP_MINFO_FUNCTION(DeepTrace);
 
 /*
  * Detect current PHP version
- * Not yet used, added for backwards compatiblity
+ * Not yet used, added for backwards compatibility
  */
 #if PHP_API_VERSION > 20090626
-#define DT_PHP_VERSION 54
+#define DEEPTRACE_PHP_VERSION 54
 #else
-#define DT_PHP_VERSION 53
-#error "DeepTrace does not support PHP 5.3 anymore."
+#define DEEPTRACE_PHP_VERSION 53
+#error "DeepTrace 2 does not support PHP 5.3 anymore."
 #endif
+
+/* DeepTrace opcode handler structure */
+typedef struct {
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+} deeptrace_opcode_handler_t;
 
 /* DeepTrace module globals */
 ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 	char* argv0;
+
+	long exitMode;
+	deeptrace_opcode_handler_t exitHandler;
+	user_opcode_handler_t exitOldHandler;
+	zend_class_entry *exitException;
 ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 
 /* DeepTrace internal constants */
 #define DEEPTRACE_VERSION "2.0.0"
+#define DEEPTRACE_PROCTITLE_MAX_LEN 256
+
 #define DEEPTRACE_PHPINFO_HTML 0
 #define DEEPTRACE_PHPINFO_TEXT 1
-#define DEEPTRACE_PROCTITLE_MAX_LEN 256
+
+#define DEEPTRACE_EXIT_NORMAL 0
+#define DEEPTRACE_EXIT_HANDLER 1
+#define DEEPTRACE_EXIT_EXCEPTION 2
 
 /* DeepTrace internal macros */
 #define DEEPTRACE_DECL_STRING_PARAM(p)			char *p; int p##_len;
+#define DEEPTRACE_DECL_FUNCTION_PARAM(p)		deeptrace_opcode_handler_t p;
 #define DEEPTRACE_STRING_PARAM(p)				&p, &p##_len
+#define DEEPTRACE_FUNCTION_PARAM(p)				&p.fci, &p.fcc
+
+/* DeepTrace internal functions */
+int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS);
+void DeepTrace_exit_cleanup();
 
 /* DeepTrace PHP functions */
 PHP_FUNCTION(dt_phpinfo_mode);
 PHP_FUNCTION(dt_set_proctitle);
+PHP_FUNCTION(dt_exit_mode);
+PHP_FUNCTION(dt_exit_fetch_exception);
 
 #endif

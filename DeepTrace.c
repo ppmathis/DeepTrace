@@ -35,12 +35,17 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_dt_set_proctitle, 0)
 	ZEND_ARG_INFO(0, "proctitle")
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_exit_fetch_exception, 0)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ DeepTrace function table */
 const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_phpinfo_mode, arginfo_dt_phpinfo_mode)
 		PHP_FE(dt_set_proctitle, arginfo_dt_set_proctitle)
+		PHP_FE(dt_exit_mode, NULL)
+		PHP_FE(dt_exit_fetch_exception, arginfo_dt_exit_fetch_exception)
 		PHP_FE_END
 };
 /* }}} */
@@ -49,6 +54,11 @@ const zend_function_entry DeepTrace_functions[] = {
 void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 {
 	globals->argv0 = NULL;
+
+	globals->exitMode = DEEPTRACE_EXIT_NORMAL;
+	globals->exitHandler.fci.function_name = NULL;
+	globals->exitHandler.fci.object_ptr = NULL;
+	globals->exitException = NULL;
 }
 /* }}} */
 
@@ -61,11 +71,19 @@ PHP_MINIT_FUNCTION(DeepTrace)
 	REGISTER_LONG_CONSTANT("DT_PHPINFO_HTML", DEEPTRACE_PHPINFO_HTML, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DT_PHPINFO_TEXT", DEEPTRACE_PHPINFO_TEXT, CONST_CS | CONST_PERSISTENT);
 
+	REGISTER_LONG_CONSTANT("DT_EXIT_NORMAL", DEEPTRACE_EXIT_NORMAL, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DT_EXIT_HANDLER", DEEPTRACE_EXIT_HANDLER, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DT_EXIT_EXCEPTION", DEEPTRACE_EXIT_EXCEPTION, CONST_CS | CONST_PERSISTENT);
+
 	/* Get pointer to argv0 */
 	sapi_module_struct *symbol = &sapi_module;
 	if(symbol) {
 		DEEPTRACE_G(argv0) = symbol->executable_location;
 	}
+
+	/* Register opcode handlers */
+	DEEPTRACE_G(exitOldHandler) = zend_get_user_opcode_handler(ZEND_EXIT);
+	zend_set_user_opcode_handler(ZEND_EXIT, DeepTrace_exit_handler);
 
 	return SUCCESS;
 }
@@ -74,6 +92,9 @@ PHP_MINIT_FUNCTION(DeepTrace)
 /* {{{ PHP_MSHUTDOWN_FUNCTION(DeepTrace) */
 PHP_MSHUTDOWN_FUNCTION(DeepTrace)
 {
+	/* Free opcode handlers */
+	zend_set_user_opcode_handler(ZEND_EXIT, NULL);
+
 	return SUCCESS;
 }
 /* }}} */
@@ -88,6 +109,9 @@ PHP_RINIT_FUNCTION(DeepTrace)
 /* {{{ PHP_RSHUTDOWN_FUNCTION(DeepTrace) */
 PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 {
+	/* Free opcode handlers */
+	DeepTrace_exit_cleanup();
+
 	return SUCCESS;
 }
 /* }}} */
@@ -128,7 +152,7 @@ zend_module_entry DeepTrace_module_entry = {
 		PHP_MINIT(DeepTrace),
 		PHP_MSHUTDOWN(DeepTrace),
 		PHP_RINIT(DeepTrace),
-		NULL,
+		PHP_RSHUTDOWN(DeepTrace),
 		PHP_MINFO(DeepTrace),
 		DEEPTRACE_VERSION,
 		STANDARD_MODULE_PROPERTIES
