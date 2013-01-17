@@ -82,3 +82,30 @@ PHP_FUNCTION(dt_phpinfo_mode)
 	RETURN_TRUE;
 }
 /* }}} */
+
+/* {{{ PHP_FUNCTION(dt_remove_include) */
+PHP_FUNCTION(dt_remove_include)
+{
+	DEEPTRACE_DECL_STRING_PARAM(includeName);
+	DEEPTRACE_DECL_STRING_PARAM(absolutePath);
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(includeName)) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Resolve absolute path */
+	absolutePath = zend_resolve_path(includeName, includeName_len TSRMLS_CC);
+	if(!absolutePath) absolutePath = estrdup(includeName);
+	absolutePath_len = strlen(absolutePath);
+
+	/* Remove include */
+	if(zend_hash_del(&EG(included_files), absolutePath, absolutePath_len + 1) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove include: %s", absolutePath);
+		efree(absolutePath);
+		RETURN_FALSE;
+	}
+
+	efree(absolutePath);
+	RETURN_TRUE;
+}
+/* }}} */

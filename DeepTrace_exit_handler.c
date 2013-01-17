@@ -157,6 +157,7 @@ static int DeepTrace_exit_set_handler(user_opcode_handler_t handler, deeptrace_o
 	}
 
 	/* Set the new handler */
+	DeepTrace_exit_cleanup();
 	DEEPTRACE_G(exitHandler).fci = userHandler.fci;
 	DEEPTRACE_G(exitHandler).fcc = userHandler.fcc;
 	Z_ADDREF_P(DEEPTRACE_G(exitHandler).fci.function_name);

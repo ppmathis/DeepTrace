@@ -117,5 +117,6 @@ PHP_FUNCTION(dt_phpinfo_mode);
 PHP_FUNCTION(dt_set_proctitle);
 PHP_FUNCTION(dt_exit_mode);
 PHP_FUNCTION(dt_exit_fetch_exception);
+PHP_FUNCTION(dt_remove_include);
 
 #endif

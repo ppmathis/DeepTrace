@@ -36,7 +36,17 @@ ZEND_BEGIN_ARG_INFO(arginfo_dt_set_proctitle, 0)
 	ZEND_ARG_INFO(0, "proctitle")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO(arginfo_dt_exit_mode, 0)
+	ZEND_ARG_INFO(0, "exitMode")
+	ZEND_ARG_INFO(0, "exitHandler")
+	ZEND_ARG_INFO(0, "exitExceptionName")
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO(arginfo_dt_exit_fetch_exception, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_include, 0)
+	ZEND_ARG_INFO(0, "includeName")
 ZEND_END_ARG_INFO()
 /* }}} */
 
@@ -44,8 +54,9 @@ ZEND_END_ARG_INFO()
 const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_phpinfo_mode, arginfo_dt_phpinfo_mode)
 		PHP_FE(dt_set_proctitle, arginfo_dt_set_proctitle)
-		PHP_FE(dt_exit_mode, NULL)
+		PHP_FE(dt_exit_mode, arginfo_dt_exit_mode)
 		PHP_FE(dt_exit_fetch_exception, arginfo_dt_exit_fetch_exception)
+		PHP_FE(dt_remove_include, arginfo_dt_remove_include)
 		PHP_FE_END
 };
 /* }}} */
