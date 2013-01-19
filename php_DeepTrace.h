@@ -28,6 +28,7 @@
 #endif
 
 #include "php.h"
+#include "zend_constants.h"
 #include "zend_exceptions.h"
 #include "zend_extensions.h"
 #include "SAPI.h"
@@ -91,6 +92,7 @@ ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 
 	HashTable *replaced_internal_functions;
 	HashTable *misplaced_internal_functions;
+	HashTable *constantCache;
 ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 
@@ -109,6 +111,13 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 #define DEEPTRACE_FUNCTION_REMOVE			1
 #define DEEPTRACE_FUNCTION_RENAME			2
 
+/*
+ * Prints debug information about the constant cache
+ * if defined. Should not be used in production - tests
+ * will fail if activated.
+ */
+// #define DEEPTRACE_DEBUG_CONSTANT_CACHE
+
 /* DeepTrace internal macros */
 #define DEEPTRACE_DECL_STRING_PARAM(p)			char *p; int p##_len;
 #define DEEPTRACE_DECL_HANDLER_PARAM(p)			deeptrace_opcode_handler_t p;
@@ -117,8 +126,10 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 
 /* DeepTrace internal functions */
 int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS);
+int DeepTrace_constant_handler(ZEND_OPCODE_HANDLER_ARGS);
 void DeepTrace_exit_cleanup();
 void DeepTrace_functions_cleanup();
+void DeepTrace_constants_cleanup();
 
 /* DeepTrace PHP functions */
 PHP_FUNCTION(dt_phpinfo_mode);
@@ -132,5 +143,9 @@ PHP_FUNCTION(dt_rename_function);
 PHP_FUNCTION(dt_set_static_function_variable);
 PHP_FUNCTION(dt_remove_class);
 PHP_FUNCTION(dt_destroy_class_data);
+PHP_FUNCTION(dt_clear_constant_cache);
+PHP_FUNCTION(dt_remove_constant);
+PHP_FUNCTION(dt_get_constant_cache_stats);
+PHP_FUNCTION(dt_destroy_class_consts);
 
 #endif

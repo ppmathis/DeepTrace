@@ -75,6 +75,20 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_dt_destroy_class_data, 0)
 	ZEND_ARG_INFO(0, "className")
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_clear_constant_cache, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_constant, 0)
+	ZEND_ARG_INFO(0, "constantName")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_get_constant_cache_stats, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_destroy_class_consts, 0)
+	ZEND_ARG_INFO(0, "className")
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ DeepTrace function table */
@@ -90,6 +104,11 @@ const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_set_static_function_variable, arginfo_dt_set_static_function_variable)
 		PHP_FE(dt_remove_class, arginfo_dt_remove_class)
 		PHP_FE(dt_destroy_class_data, arginfo_dt_destroy_class_data)
+
+		PHP_FE(dt_clear_constant_cache, arginfo_dt_clear_constant_cache)
+		PHP_FE(dt_remove_constant, arginfo_dt_remove_constant)
+		PHP_FE(dt_get_constant_cache_stats, arginfo_dt_get_constant_cache_stats)
+		PHP_FE(dt_destroy_class_consts, arginfo_dt_destroy_class_consts)
 		PHP_FE_END
 };
 /* }}} */
@@ -132,6 +151,7 @@ PHP_MINIT_FUNCTION(DeepTrace)
 	/* Register opcode handlers */
 	DEEPTRACE_G(exitOldHandler) = zend_get_user_opcode_handler(ZEND_EXIT);
 	zend_set_user_opcode_handler(ZEND_EXIT, DeepTrace_exit_handler);
+	zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, DeepTrace_constant_handler);
 
 	return SUCCESS;
 }
@@ -141,6 +161,7 @@ PHP_MINIT_FUNCTION(DeepTrace)
 PHP_MSHUTDOWN_FUNCTION(DeepTrace)
 {
 	zend_set_user_opcode_handler(ZEND_EXIT, NULL);
+	zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, NULL);
 
 	return SUCCESS;
 }
@@ -158,6 +179,7 @@ PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 {
 	DeepTrace_exit_cleanup();
 	DeepTrace_functions_cleanup();
+	DeepTrace_constants_cleanup();
 
 	return SUCCESS;
 }
