@@ -61,6 +61,12 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_dt_inspect_zval, 0)
 	ZEND_ARG_INFO(0, "zval")
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_set_static_function_variable, 0)
+	ZEND_ARG_INFO(0, "functionName")
+	ZEND_ARG_INFO(0, "variableName")
+	ZEND_ARG_INFO(0, "newValue")
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ DeepTrace function table */
@@ -73,6 +79,7 @@ const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_remove_function, arginfo_dt_remove_function)
 		PHP_FE(dt_rename_function, arginfo_dt_rename_function)
 		PHP_FE(dt_inspect_zval, arginfo_dt_inspect_zval)
+		PHP_FE(dt_set_static_function_variable, arginfo_dt_set_static_function_variable)
 		PHP_FE_END
 };
 /* }}} */

@@ -101,12 +101,13 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 #define DEEPTRACE_PHPINFO_HTML 0
 #define DEEPTRACE_PHPINFO_TEXT 1
 
-#define DEEPTRACE_EXIT_NORMAL 0
-#define DEEPTRACE_EXIT_HANDLER 1
-#define DEEPTRACE_EXIT_EXCEPTION 2
+#define DEEPTRACE_EXIT_NORMAL		0
+#define DEEPTRACE_EXIT_HANDLER		1
+#define DEEPTRACE_EXIT_EXCEPTION	2
 
-#define DEEPTRACE_FUNCTION_REMOVE 0
-#define DEEPTRACE_FUNCTION_RENAME 1
+#define DEEPTRACE_FUNCTION_SET_STATIC_VAR	0
+#define DEEPTRACE_FUNCTION_REMOVE			1
+#define DEEPTRACE_FUNCTION_RENAME			2
 
 /* DeepTrace internal macros */
 #define DEEPTRACE_DECL_STRING_PARAM(p)			char *p; int p##_len;
@@ -128,5 +129,6 @@ PHP_FUNCTION(dt_inspect_zval);
 PHP_FUNCTION(dt_remove_include);
 PHP_FUNCTION(dt_remove_function);
 PHP_FUNCTION(dt_rename_function);
+PHP_FUNCTION(dt_set_static_function_variable);
 
 #endif

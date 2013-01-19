@@ -28,7 +28,7 @@ static int DeepTrace_fetch_function(char *funcName, int funcName_len, zend_funct
 	zend_function *func;
 
 	/* Find function in hash table */
-	if(zend_hash_quick_find(EG(function_table), funcName, funcName_len + 1, hash, (void**) &func)) {
+	if(zend_hash_quick_find(EG(function_table), funcName, funcName_len + 1, hash, (void**) &func) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function %s() does not exist.", funcName);
 		return FAILURE;
 	}
@@ -236,3 +236,52 @@ PHP_FUNCTION(dt_remove_function)
 	RETURN_TRUE;
 }
 /* }}} */
+
+PHP_FUNCTION(dt_set_static_function_variable)
+{
+	DEEPTRACE_DECL_STRING_PARAM(functionName);
+	DEEPTRACE_DECL_STRING_PARAM(variableName);
+	int refcount;
+	zval *value, **variablePointer;
+	ulong functionHash, variableHash;
+	zend_function *func;
+	zend_uchar isRef;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz",
+			DEEPTRACE_STRING_PARAM(functionName),
+			DEEPTRACE_STRING_PARAM(variableName),
+			&value) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Make function name lowercase and get hashs */
+	functionName = zend_str_tolower_dup(functionName, functionName_len);
+	functionHash = zend_inline_hash_func(functionName, functionName_len + 1);
+	variableHash = zend_inline_hash_func(variableName, variableName_len + 1);
+
+	/* Fetch function */
+	if(DeepTrace_fetch_function(functionName, functionName_len, &func, 0, functionHash TSRMLS_CC) == FAILURE) {
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	/* Get pointer to static variable */
+	if(func->op_array.static_variables == NULL || zend_hash_quick_find(func->op_array.static_variables,
+			variableName, variableName_len + 1, variableHash, (void **) &variablePointer) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Static variable %s does not exist.", variableName);
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	/* Change value of static variable */
+	refcount = Z_REFCOUNT_PP(variablePointer);
+	isRef = Z_ISREF_P(variablePointer);
+	zval_dtor(*variablePointer);
+	**variablePointer = *value;
+	zval_copy_ctor(*variablePointer);
+	Z_SET_REFCOUNT_PP(variablePointer, refcount);
+	Z_SET_ISREF_TO_PP(variablePointer, isRef);
+
+	efree(functionName);
+	RETURN_TRUE;
+}
