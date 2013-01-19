@@ -48,6 +48,19 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_include, 0)
 	ZEND_ARG_INFO(0, "includeName")
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_function, 0)
+	ZEND_ARG_INFO(0, "functionName")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_rename_function, 0)
+	ZEND_ARG_INFO(0, "oldFunctionName")
+	ZEND_ARG_INFO(0, "newFunctionName")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_inspect_zval, 0)
+	ZEND_ARG_INFO(0, "zval")
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ DeepTrace function table */
@@ -57,6 +70,9 @@ const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_exit_mode, arginfo_dt_exit_mode)
 		PHP_FE(dt_exit_fetch_exception, arginfo_dt_exit_fetch_exception)
 		PHP_FE(dt_remove_include, arginfo_dt_remove_include)
+		PHP_FE(dt_remove_function, arginfo_dt_remove_function)
+		PHP_FE(dt_rename_function, arginfo_dt_rename_function)
+		PHP_FE(dt_inspect_zval, arginfo_dt_inspect_zval)
 		PHP_FE_END
 };
 /* }}} */
@@ -67,9 +83,13 @@ void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 	globals->argv0 = NULL;
 
 	globals->exitMode = DEEPTRACE_EXIT_NORMAL;
+	globals->exitOldHandler = NULL;
 	globals->exitHandler.fci.function_name = NULL;
 	globals->exitHandler.fci.object_ptr = NULL;
 	globals->exitException = NULL;
+
+	globals->misplaced_internal_functions = NULL;
+	globals->replaced_internal_functions = NULL;
 }
 /* }}} */
 
@@ -103,7 +123,6 @@ PHP_MINIT_FUNCTION(DeepTrace)
 /* {{{ PHP_MSHUTDOWN_FUNCTION(DeepTrace) */
 PHP_MSHUTDOWN_FUNCTION(DeepTrace)
 {
-	/* Free opcode handlers */
 	zend_set_user_opcode_handler(ZEND_EXIT, NULL);
 
 	return SUCCESS;
@@ -120,8 +139,8 @@ PHP_RINIT_FUNCTION(DeepTrace)
 /* {{{ PHP_RSHUTDOWN_FUNCTION(DeepTrace) */
 PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 {
-	/* Free opcode handlers */
 	DeepTrace_exit_cleanup();
+	DeepTrace_functions_cleanup();
 
 	return SUCCESS;
 }
@@ -172,6 +191,9 @@ zend_module_entry DeepTrace_module_entry = {
 
 /* {{{ DeepTrace_zend_startup */
 int DeepTrace_zend_startup(zend_extension *extension) {
+	TSRMLS_FETCH();
+	CG(compiler_options) |= ZEND_COMPILE_NO_CONSTANT_SUBSTITUTION;
+
 	return zend_startup_module(&DeepTrace_module_entry);
 }
 /* }}} */

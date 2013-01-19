@@ -23,7 +23,8 @@
 
 /* {{{ DeepTrace_get_zval_ptr */
 static zval *DeepTrace_get_zval_ptr(int op_type, znode_op *node, zval **freeval,
-		zend_execute_data *execute_data TSRMLS_DC) {
+		zend_execute_data *execute_data TSRMLS_DC)
+{
 	*freeval = NULL;
 
 	switch(op_type) {
@@ -170,11 +171,11 @@ static int DeepTrace_exit_set_handler(user_opcode_handler_t handler, deeptrace_o
 /* {{{ PHP_FUNCTION(dt_exit_mode) */
 PHP_FUNCTION(dt_exit_mode) {
 	long exitMode;
-	DEEPTRACE_DECL_FUNCTION_PARAM(handlerFunction);
+	DEEPTRACE_DECL_HANDLER_PARAM(handlerFunction);
 	DEEPTRACE_DECL_STRING_PARAM(exceptionName);
 
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|fs", &exitMode,
-			DEEPTRACE_FUNCTION_PARAM(handlerFunction),
+			DEEPTRACE_HANDLER_PARAM(handlerFunction),
 			DEEPTRACE_STRING_PARAM(exceptionName)) == FAILURE) {
 		RETURN_FALSE;
 	}

@@ -26,5 +26,5 @@ if test "$PHP_DEEPTRACE" != "no"; then
 		fi
 	fi
 	
-	PHP_NEW_EXTENSION(DeepTrace, DeepTrace.c DeepTrace_misc.c DeepTrace_exit_handler.c, $ext_shared)
+	PHP_NEW_EXTENSION(DeepTrace, DeepTrace.c DeepTrace_misc.c DeepTrace_exit_handler.c DeepTrace_functions.c, $ext_shared)
 fi

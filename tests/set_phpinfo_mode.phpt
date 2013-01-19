@@ -4,6 +4,7 @@ Setting phpinfo mode
 <?php
 if(!extension_loaded("DeepTrace")) print "skip";
 if(!function_exists("dt_phpinfo_mode")) print "skip";
+?>
 --FILE--
 <?php
 function detectMode() {

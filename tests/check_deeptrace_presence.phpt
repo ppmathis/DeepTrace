@@ -3,7 +3,9 @@ Checking for DeepTrace presence
 --INI--
 zend_extension=modules/DeepTrace.so
 --SKIPIF--
-<?php if(!extension_loaded("DeepTrace")) print "Extension not loaded"; ?>
+<?php
+if(!extension_loaded("DeepTrace")) print "skip";
+?>
 --FILE--
 <?php
 echo "DeepTrace extension is available";

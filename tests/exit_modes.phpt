@@ -5,6 +5,7 @@ Testing various exit modes (normal, handler, exception)
 if(!extension_loaded("DeepTrace")) print "skip";
 if(!function_exists("dt_exit_mode")) print "skip";
 if(!function_exists("dt_exit_fetch_exception")) print "skip";
+?>
 --FILE--
 <?php
 	function ExitHandler($msg = null) {

@@ -88,6 +88,9 @@ ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 	deeptrace_opcode_handler_t exitHandler;
 	user_opcode_handler_t exitOldHandler;
 	zend_class_entry *exitException;
+
+	HashTable *replaced_internal_functions;
+	HashTable *misplaced_internal_functions;
 ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 
@@ -102,21 +105,28 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 #define DEEPTRACE_EXIT_HANDLER 1
 #define DEEPTRACE_EXIT_EXCEPTION 2
 
+#define DEEPTRACE_FUNCTION_REMOVE 0
+#define DEEPTRACE_FUNCTION_RENAME 1
+
 /* DeepTrace internal macros */
 #define DEEPTRACE_DECL_STRING_PARAM(p)			char *p; int p##_len;
-#define DEEPTRACE_DECL_FUNCTION_PARAM(p)		deeptrace_opcode_handler_t p;
+#define DEEPTRACE_DECL_HANDLER_PARAM(p)			deeptrace_opcode_handler_t p;
 #define DEEPTRACE_STRING_PARAM(p)				&p, &p##_len
-#define DEEPTRACE_FUNCTION_PARAM(p)				&p.fci, &p.fcc
+#define DEEPTRACE_HANDLER_PARAM(p)				&p.fci, &p.fcc
 
 /* DeepTrace internal functions */
 int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS);
 void DeepTrace_exit_cleanup();
+void DeepTrace_functions_cleanup();
 
 /* DeepTrace PHP functions */
 PHP_FUNCTION(dt_phpinfo_mode);
 PHP_FUNCTION(dt_set_proctitle);
 PHP_FUNCTION(dt_exit_mode);
 PHP_FUNCTION(dt_exit_fetch_exception);
+PHP_FUNCTION(dt_inspect_zval);
 PHP_FUNCTION(dt_remove_include);
+PHP_FUNCTION(dt_remove_function);
+PHP_FUNCTION(dt_rename_function);
 
 #endif

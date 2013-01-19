@@ -109,3 +109,24 @@ PHP_FUNCTION(dt_remove_include)
 	RETURN_TRUE;
 }
 /* }}} */
+
+/* {{{ PHP_FUNCTION(dt_inspect_zval) */
+PHP_FUNCTION(dt_inspect_zval)
+{
+	zval *val;
+	char *addr;
+	int addr_len;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &val) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+	addr_len = spprintf(&addr, 0, "0x%01x", (long) val);
+
+	add_assoc_stringl(return_value, "address", addr, addr_len, 0);
+	add_assoc_long(return_value, "refcount", val->refcount__gc);
+	add_assoc_bool(return_value, "is_ref", val->is_ref__gc);
+	add_assoc_long(return_value, "type", val->type);
+}
+/* }}} */
