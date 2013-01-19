@@ -260,7 +260,8 @@ PHP_FUNCTION(dt_set_static_function_variable)
 	variableHash = zend_inline_hash_func(variableName, variableName_len + 1);
 
 	/* Fetch function */
-	if(DeepTrace_fetch_function(functionName, functionName_len, &func, 0, functionHash TSRMLS_CC) == FAILURE) {
+	if(DeepTrace_fetch_function(functionName, functionName_len, &func,
+			DEEPTRACE_FUNCTION_SET_STATIC_VAR, functionHash TSRMLS_CC) == FAILURE) {
 		efree(functionName);
 		RETURN_FALSE;
 	}
@@ -275,7 +276,7 @@ PHP_FUNCTION(dt_set_static_function_variable)
 
 	/* Change value of static variable */
 	refcount = Z_REFCOUNT_PP(variablePointer);
-	isRef = Z_ISREF_P(variablePointer);
+	isRef = Z_ISREF_PP(variablePointer);
 	zval_dtor(*variablePointer);
 	**variablePointer = *value;
 	zval_copy_ctor(*variablePointer);

@@ -130,5 +130,7 @@ PHP_FUNCTION(dt_remove_include);
 PHP_FUNCTION(dt_remove_function);
 PHP_FUNCTION(dt_rename_function);
 PHP_FUNCTION(dt_set_static_function_variable);
+PHP_FUNCTION(dt_remove_class);
+PHP_FUNCTION(dt_destroy_class_data);
 
 #endif
