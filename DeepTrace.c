@@ -89,19 +89,52 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_dt_destroy_class_consts, 0)
 	ZEND_ARG_INFO(0, "className")
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_add_method, 0)
+	ZEND_ARG_INFO(0, "className")
+	ZEND_ARG_INFO(0, "methodName")
+	ZEND_ARG_INFO(0, "arguments")
+	ZEND_ARG_INFO(0, "phpcode")
+	ZEND_ARG_INFO(0, "flags")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_rename_method, 0)
+	ZEND_ARG_INFO(0, "className")
+	ZEND_ARG_INFO(0, "oldMethodName")
+	ZEND_ARG_INFO(0, "newMethodName")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_remove_method, 0)
+	ZEND_ARG_INFO(0, "className")
+	ZEND_ARG_INFO(0, "methodName")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_set_static_method_variable, 0)
+	ZEND_ARG_INFO(0, "className")
+	ZEND_ARG_INFO(0, "methodName")
+	ZEND_ARG_INFO(0, "variableName")
+	ZEND_ARG_INFO(0, "newValue")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_dt_fix_static_method_calls, 0)
+	ZEND_ARG_INFO(0, "state")
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ DeepTrace function table */
 const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_phpinfo_mode, arginfo_dt_phpinfo_mode)
 		PHP_FE(dt_set_proctitle, arginfo_dt_set_proctitle)
+		PHP_FE(dt_remove_include, arginfo_dt_remove_include)
+		PHP_FE(dt_inspect_zval, arginfo_dt_inspect_zval)
+
 		PHP_FE(dt_exit_mode, arginfo_dt_exit_mode)
 		PHP_FE(dt_exit_fetch_exception, arginfo_dt_exit_fetch_exception)
-		PHP_FE(dt_remove_include, arginfo_dt_remove_include)
+
 		PHP_FE(dt_remove_function, arginfo_dt_remove_function)
 		PHP_FE(dt_rename_function, arginfo_dt_rename_function)
-		PHP_FE(dt_inspect_zval, arginfo_dt_inspect_zval)
 		PHP_FE(dt_set_static_function_variable, arginfo_dt_set_static_function_variable)
+
 		PHP_FE(dt_remove_class, arginfo_dt_remove_class)
 		PHP_FE(dt_destroy_class_data, arginfo_dt_destroy_class_data)
 
@@ -109,6 +142,12 @@ const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_remove_constant, arginfo_dt_remove_constant)
 		PHP_FE(dt_get_constant_cache_stats, arginfo_dt_get_constant_cache_stats)
 		PHP_FE(dt_destroy_class_consts, arginfo_dt_destroy_class_consts)
+
+		PHP_FE(dt_add_method, arginfo_dt_add_method)
+		PHP_FE(dt_rename_method, arginfo_dt_rename_method)
+		PHP_FE(dt_remove_method, arginfo_dt_remove_method)
+		PHP_FE(dt_set_static_method_variable, arginfo_dt_set_static_method_variable)
+		PHP_FE(dt_fix_static_method_calls, arginfo_dt_fix_static_method_calls)
 		PHP_FE_END
 };
 /* }}} */
@@ -126,6 +165,7 @@ void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 
 	globals->misplaced_internal_functions = NULL;
 	globals->replaced_internal_functions = NULL;
+	globals->fixStaticMethodCalls = 1;
 }
 /* }}} */
 
@@ -142,6 +182,11 @@ PHP_MINIT_FUNCTION(DeepTrace)
 	REGISTER_LONG_CONSTANT("DT_EXIT_HANDLER", DEEPTRACE_EXIT_HANDLER, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DT_EXIT_EXCEPTION", DEEPTRACE_EXIT_EXCEPTION, CONST_CS | CONST_PERSISTENT);
 
+	REGISTER_LONG_CONSTANT("DT_ACC_PUBLIC", ZEND_ACC_PUBLIC, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DT_ACC_PROTECTED", ZEND_ACC_PROTECTED, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DT_ACC_PRIVATE", ZEND_ACC_PRIVATE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DT_ACC_STATIC", ZEND_ACC_STATIC, CONST_CS | CONST_PERSISTENT);
+
 	/* Get pointer to argv0 */
 	sapi_module_struct *symbol = &sapi_module;
 	if(symbol) {
@@ -152,6 +197,8 @@ PHP_MINIT_FUNCTION(DeepTrace)
 	DEEPTRACE_G(exitOldHandler) = zend_get_user_opcode_handler(ZEND_EXIT);
 	zend_set_user_opcode_handler(ZEND_EXIT, DeepTrace_exit_handler);
 	zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, DeepTrace_constant_handler);
+	zend_set_user_opcode_handler(ZEND_INIT_STATIC_METHOD_CALL, DeepTrace_static_method_call_handler);
+	zend_set_user_opcode_handler(ZEND_FETCH_CLASS, DeepTrace_static_method_call_handler);
 
 	return SUCCESS;
 }
@@ -162,6 +209,8 @@ PHP_MSHUTDOWN_FUNCTION(DeepTrace)
 {
 	zend_set_user_opcode_handler(ZEND_EXIT, NULL);
 	zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, NULL);
+	zend_set_user_opcode_handler(ZEND_INIT_STATIC_METHOD_CALL, NULL);
+	zend_set_user_opcode_handler(ZEND_FETCH_CLASS, NULL);
 
 	return SUCCESS;
 }
@@ -180,6 +229,8 @@ PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 	DeepTrace_exit_cleanup();
 	DeepTrace_functions_cleanup();
 	DeepTrace_constants_cleanup();
+
+	DEEPTRACE_G(fixStaticMethodCalls) = 1;
 
 	return SUCCESS;
 }

@@ -93,12 +93,15 @@ ZEND_BEGIN_MODULE_GLOBALS(DeepTrace)
 	HashTable *replaced_internal_functions;
 	HashTable *misplaced_internal_functions;
 	HashTable *constantCache;
+
+	zend_bool fixStaticMethodCalls;
 ZEND_END_MODULE_GLOBALS(DeepTrace)
 extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 
 /* DeepTrace internal constants */
 #define DEEPTRACE_VERSION "2.0.0"
 #define DEEPTRACE_PROCTITLE_MAX_LEN 256
+#define DEEPTRACE_TEMP_FUNCNAME "__dt_temporary_function__"
 
 #define DEEPTRACE_PHPINFO_HTML 0
 #define DEEPTRACE_PHPINFO_TEXT 1
@@ -124,9 +127,28 @@ extern ZEND_DECLARE_MODULE_GLOBALS(DeepTrace)
 #define DEEPTRACE_STRING_PARAM(p)				&p, &p##_len
 #define DEEPTRACE_HANDLER_PARAM(p)				&p.fci, &p.fcc
 
+#define DT_ADD_MAGIC_METHOD(ce, method, fe) { \
+	if ((strcmp((method), (ce)->name) == 0) || (strcmp((method), "__construct") == 0)) { (ce)->constructor	= (fe); (fe)->common.fn_flags = ZEND_ACC_CTOR; } \
+	else if (strcmp((method), "__destruct") == 0) {	(ce)->destructor	= (fe); (fe)->common.fn_flags = ZEND_ACC_DTOR; } \
+	else if (strcmp((method), "__clone") == 0)  {	(ce)->clone			= (fe); (fe)->common.fn_flags = ZEND_ACC_CLONE; } \
+	else if (strcmp((method), "__get") == 0)		(ce)->__get			= (fe); \
+	else if (strcmp((method), "__set") == 0)		(ce)->__set			= (fe); \
+	else if (strcmp((method), "__call") == 0)		(ce)->__call		= (fe); \
+}
+
+#define DT_DEL_MAGIC_METHOD(ce, fe) { \
+	if ((ce)->constructor == (fe))			(ce)->constructor	= NULL; \
+	else if ((ce)->destructor == (fe))		(ce)->destructor	= NULL; \
+	else if ((ce)->clone == (fe))			(ce)->clone			= NULL; \
+	else if ((ce)->__get == (fe))			(ce)->__get			= NULL; \
+	else if ((ce)->__set == (fe))			(ce)->__set			= NULL; \
+	else if ((ce)->__call == (fe))			(ce)->__call		= NULL; \
+}
+
 /* DeepTrace internal functions */
 int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS);
 int DeepTrace_constant_handler(ZEND_OPCODE_HANDLER_ARGS);
+int DeepTrace_static_method_call_handler(ZEND_OPCODE_HANDLER_ARGS);
 void DeepTrace_exit_cleanup();
 void DeepTrace_functions_cleanup();
 void DeepTrace_constants_cleanup();
@@ -147,5 +169,10 @@ PHP_FUNCTION(dt_clear_constant_cache);
 PHP_FUNCTION(dt_remove_constant);
 PHP_FUNCTION(dt_get_constant_cache_stats);
 PHP_FUNCTION(dt_destroy_class_consts);
+PHP_FUNCTION(dt_add_method);
+PHP_FUNCTION(dt_rename_method);
+PHP_FUNCTION(dt_remove_method);
+PHP_FUNCTION(dt_set_static_method_variable);
+PHP_FUNCTION(dt_fix_static_method_calls);
 
 #endif
