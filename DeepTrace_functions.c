@@ -73,12 +73,9 @@ static int DeepTrace_fetch_function(char *funcName, int funcName_len, zend_funct
 /* {{{ DeepTrace_destroy_misplaced_functions */
 static int DeepTrace_destroy_misplaced_functions(zend_hash_key *hashKey TSRMLS_DC)
 {
-	char *key;
-
 	if(!hashKey->nKeyLength) return ZEND_HASH_APPLY_REMOVE;
-	key = (char *) hashKey->arKey;
 	zend_hash_del(EG(function_table), hashKey->arKey, hashKey->nKeyLength);
-	efree(key);
+	efree(hashKey->arKey);
 	return ZEND_HASH_APPLY_REMOVE;
 }
 /* }}} */
@@ -124,6 +121,64 @@ void DeepTrace_functions_cleanup()
 
 	DEEPTRACE_G(replaced_internal_functions) = NULL;
 	DEEPTRACE_G(misplaced_internal_functions) = NULL;
+}
+/* }}} */
+
+/* {{{ DeepTrace_clear_function_runtime_cache */
+static int DeepTrace_clear_function_runtime_cache(void *pDest TSRMLS_DC)
+{
+	zend_function *f = (zend_function *) pDest;
+
+	if(pDest == NULL || f->type != ZEND_USER_FUNCTION ||
+			f->op_array.last_cache_slot == 0 || f->op_array.run_time_cache == NULL) {
+		return ZEND_HASH_APPLY_KEEP;
+	}
+
+	memset(f->op_array.run_time_cache, 0, (f->op_array.last_cache_slot) * sizeof(void *));
+	return ZEND_HASH_APPLY_KEEP;
+}
+/* }}} */
+
+/* {{{ DeepTrace_clear_all_functions_runtime_cache */
+void DeepTrace_clear_all_functions_runtime_cache(TSRMLS_D)
+{
+	int i, count;
+	zend_execute_data *ptr;
+	HashPosition hashPos;
+
+	zend_hash_apply(EG(function_table), (apply_func_t) DeepTrace_clear_function_runtime_cache TSRMLS_CC);
+	zend_hash_internal_pointer_reset_ex(EG(class_table), &hashPos);
+	count = zend_hash_num_elements(EG(class_table));
+
+	for(i = 0; i < count; ++i) {
+		zend_class_entry **ce;
+		zend_hash_get_current_data_ex(EG(class_table), (void *) &ce, &hashPos);
+		zend_hash_apply(&(* ce)->function_table, (apply_func_t) DeepTrace_clear_function_runtime_cache TSRMLS_CC);
+		zend_hash_move_forward_ex(EG(class_table), &hashPos);
+	}
+
+	for(ptr = EG(current_execute_data); ptr != NULL; ptr = ptr->prev_execute_data) {
+		if(ptr->op_array == NULL || ptr->op_array->last_cache_slot == 0 || ptr->op_array->run_time_cache == NULL) {
+			continue;
+		}
+		memset(ptr->op_array->run_time_cache, 0, (ptr->op_array->last_cache_slot) * sizeof(void *));
+	}
+
+	if(!EG(objects_store).object_buckets) {
+		return;
+	}
+
+	for(i = 1; i < EG(objects_store).top; i++) {
+		if(EG(objects_store).object_buckets[i].valid && (!EG(objects_store).object_buckets[i].destructor_called) &&
+				EG(objects_store).object_buckets[i].bucket.obj.object) {
+			zend_object *object;
+			object = (zend_object *) EG(objects_store).object_buckets[i].bucket.obj.object;
+			if(object->ce == zend_ce_closure) {
+				zend_closure *cl = (zend_closure *) object;
+				DeepTrace_clear_function_runtime_cache((void *) &cl->func TSRMLS_CC);
+			}
+		}
+	}
 }
 /* }}} */
 
@@ -191,6 +246,7 @@ PHP_FUNCTION(dt_rename_function)
 		RETURN_FALSE;
 	}
 
+	DeepTrace_clear_all_functions_runtime_cache(TSRMLS_C);
 	efree(oldFuncName);
 	efree(newFuncName);
 	RETURN_TRUE;
@@ -232,6 +288,7 @@ PHP_FUNCTION(dt_remove_function)
 
 	/* Delete the function */
 	zend_hash_quick_del(EG(function_table), functionName, functionName_len + 1, hash);
+	DeepTrace_clear_all_functions_runtime_cache(TSRMLS_C);
 	efree(functionName);
 	RETURN_TRUE;
 }
@@ -286,3 +343,29 @@ PHP_FUNCTION(dt_set_static_function_variable)
 	efree(functionName);
 	RETURN_TRUE;
 }
+
+/* {{{ PHP_FUNCTION(dt_destroy_function_data) */
+PHP_FUNCTION(dt_destroy_function_data)
+{
+	DEEPTRACE_DECL_STRING_PARAM(functionName);
+	zend_function *func;
+	ulong hash;
+
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+			DEEPTRACE_STRING_PARAM(functionName)) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Convert function name to lowercase and get hash */
+	hash = zend_inline_hash_func(functionName, functionName_len + 1);
+	if(DeepTrace_fetch_function(functionName, functionName_len, &func, 0, hash TSRMLS_CC) == FAILURE) {
+		efree(functionName);
+		RETURN_FALSE;
+	}
+
+	/* Cleanup function data */
+	zend_cleanup_function_data_full(func TSRMLS_CC);
+	efree(functionName);
+	RETURN_TRUE;
+}
+/* }}} */

@@ -69,7 +69,7 @@ static int DeepTrace_generate_lambda_method(char *arguments, int arguments_len, 
 	efree(evalName);
 
 	if(zend_hash_find(EG(function_table), DEEPTRACE_TEMP_FUNCNAME, sizeof(DEEPTRACE_TEMP_FUNCNAME),
-			(void **) pfe) == FAILURE) {
+			(void *) pfe) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unexpected inconsistency while trying to create lambda method.");
 		return FAILURE;
 	}
@@ -81,24 +81,25 @@ static int DeepTrace_generate_lambda_method(char *arguments, int arguments_len, 
 static int DeepTrace_fetch_class_int(char *className, int className_len, zend_class_entry **pce TSRMLS_DC)
 {
 	zend_class_entry *ce, **ze;
+	char *lowerClassName;
 
 	/* Ignore leading backslash */
 	if(className[0] == '\\') {
 		++className;
 		--className_len;
 	}
-	className = zend_str_tolower_dup(className, className_len);
+	lowerClassName = zend_str_tolower_dup(className, className_len);
 
 	/* Fetch class from hash table */
-	if(zend_hash_find(EG(class_table), className, className_len + 1, (void **) &ze) == FAILURE || !ze || !*ze) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Class '%s' not found.", className);
-		efree(className);
+	if(zend_hash_find(EG(class_table), lowerClassName, className_len + 1, (void **) &ze) == FAILURE || !ze || !*ze) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Class '%s' not found.", lowerClassName);
+		efree(lowerClassName);
 		return FAILURE;
 	}
 
 	ce = *ze;
 	if(pce) *pce = ce;
-	efree(className);
+	efree(lowerClassName);
 	return SUCCESS;
 }
 /* }}} */
@@ -171,29 +172,33 @@ static int DeepTrace_fetch_class_method(char *className, int className_len, char
 static int DeepTrace_update_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs,
 		va_list args, zend_hash_key *hashKey)
 {
-	zend_class_entry *anchorClass = va_arg(args, zend_class_entry *);
+	zend_class_entry *ancestorClass = va_arg(args, zend_class_entry *);
 	zend_class_entry *parentClass = va_arg(args, zend_class_entry *);
 	zend_class_entry *scope;
 	zend_function *fe = va_arg(args, zend_function *);
 	zend_function *cfe = NULL;
 	char *funcName = va_arg(args, char *);
 	int funcName_len = va_arg(args, int);
+	zend_function *original_fe = va_arg(args, zend_function *);
 	ulong hash;
 
 	/* If it is not a child, it can be ignored */
+	ce = *((zend_class_entry **) ce);
 	if(ce->parent != parentClass) {
 		return ZEND_HASH_APPLY_KEEP;
 	}
 
 	/* Convert method name to lowercase and get hash */
 	funcName = zend_str_tolower_dup(funcName, funcName_len);
-	ce = *((zend_class_entry **) ce);
 	hash = zend_inline_hash_func(funcName, funcName_len + 1);
 
 	/* Ignore methods below our level */
 	if(zend_hash_quick_find(&ce->function_table, funcName, funcName_len + 1, hash, (void **) &cfe) == SUCCESS) {
 		scope = fe->common.scope;
-		if(scope != anchorClass) {
+		if(scope != ancestorClass) {
+			cfe->common.prototype = DeepTrace_get_method_prototype(scope->parent, funcName, funcName_len TSRMLS_CC);
+			zend_hash_apply_with_arguments(EG(class_table), (apply_func_args_t) DeepTrace_update_children_methods,
+					6, ancestorClass, ce, fe, funcName, funcName_len, original_fe);
 			efree(funcName);
 			return ZEND_HASH_APPLY_KEEP;
 		}
@@ -215,9 +220,9 @@ static int DeepTrace_update_children_methods(zend_class_entry *ce TSRMLS_DC, int
 
 	/* Support magic methods */
 	function_add_ref(fe);
-	DEEPTRACE_ADD_MAGIC_METHOD(ce, funcName, fe);
+	DEEPTRACE_INHERIT_MAGIC_METHOD(ce, fe, original_fe);
 	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_update_children_methods,
-			5, anchorClass, ce, fe, funcName, funcName_len);
+			6, ancestorClass, ce, fe, funcName, funcName_len, original_fe);
 
 	efree(funcName);
 	return ZEND_HASH_APPLY_KEEP;
@@ -228,28 +233,29 @@ static int DeepTrace_update_children_methods(zend_class_entry *ce TSRMLS_DC, int
 static int DeepTrace_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int numArgs,
 		va_list args, zend_hash_key *hashKey)
 {
-	zend_class_entry *anchorClass = va_arg(args, zend_class_entry *);
+	zend_class_entry *ancestorClass = va_arg(args, zend_class_entry *);
 	zend_class_entry *parentClass = va_arg(args, zend_class_entry *);
 	zend_class_entry *scope;
 	zend_function *cfe = NULL;
 	char *funcName = va_arg(args, char *);
 	int funcName_len = va_arg(args, int);
+	zend_function *original_cfe = va_arg(args, zend_function *);
 	ulong hash;
 
 	/* If it is not a child, it can be ignored */
+	ce = *((zend_class_entry **) ce);
 	if(ce->parent != parentClass) {
 		return ZEND_HASH_APPLY_KEEP;
 	}
 
 	/* Convert method name to lowercase and get hash */
 	funcName = zend_str_tolower_dup(funcName, funcName_len);
-	ce = *((zend_class_entry **) ce);
 	hash = zend_inline_hash_func(funcName, funcName_len + 1);
 
 	/* Ignore methods below our level */
 	if(zend_hash_quick_find(&ce->function_table, funcName, funcName_len + 1, hash, (void **) &cfe) == SUCCESS) {
 		scope = cfe->common.scope;
-		if(scope != anchorClass) {
+		if(scope != ancestorClass) {
 			efree(funcName);
 			return ZEND_HASH_APPLY_KEEP;
 		}
@@ -262,12 +268,123 @@ static int DeepTrace_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int 
 	}
 
 	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_clean_children_methods,
-			4, anchorClass, ce, funcName, funcName_len);
+			5, ancestorClass, ce, funcName, funcName_len, original_cfe);
 	zend_hash_quick_del(&ce->function_table, funcName, funcName_len + 1, hash);
-	DT_DEL_MAGIC_METHOD(ce, cfe);
+	DEEPTRACE_DEL_MAGIC_METHOD(ce, original_cfe);
 
 	efree(funcName);
 	return ZEND_HASH_APPLY_KEEP;
+}
+/* }}} */
+
+/* {{{ DeepTrace_misplaced_methods_destructor */
+static void DeepTrace_misplaced_methods_destructor(void *pElement)
+{
+	zend_hash_key *hashKey = (zend_hash_key *) pElement;
+	efree(hashKey->arKey);
+}
+/* }}} */
+
+/* {{{ DeepTrace_misplaced_methods */
+static void DeepTrace_misplaced_methods(int type, char *className, int className_len,
+		char *methodName, int methodName_len)
+{
+	/* Initialize hash table if not yet initialized */
+	if(!DEEPTRACE_G(misplaced_internal_methods)) {
+		ALLOC_HASHTABLE(DEEPTRACE_G(misplaced_internal_methods));
+		zend_hash_init(DEEPTRACE_G(misplaced_internal_methods), 4, NULL, DeepTrace_misplaced_methods_destructor, 0);
+	}
+
+	/* Create combined name */
+	char *combinedName;
+	int combinedName_len;
+	combinedName = emalloc(className_len + methodName_len + 2);
+	sprintf(combinedName, "%s%c%s", className, '\1', methodName);
+	combinedName_len = strlen(combinedName);
+
+	switch(type) {
+	case DEEPTRACE_MISPLACED_METHOD_ADD:
+	{
+		zend_hash_key hashKey;
+		hashKey.arKey = combinedName;
+		hashKey.nKeyLength = combinedName_len + 1;
+		zend_hash_add(DEEPTRACE_G(misplaced_internal_methods), combinedName, combinedName_len + 1,
+				(void *) &hashKey, sizeof(zend_hash_key), NULL);
+		break;
+	}
+	case DEEPTRACE_MISPLACED_METHOD_REMOVE:
+	{
+		zend_hash_del(DEEPTRACE_G(misplaced_internal_methods), combinedName, combinedName_len + 1);
+		efree(combinedName);
+		break;
+	}
+	}
+}
+/* }}} */
+
+/* {{{ DeepTrace_remove_method */
+static int DeepTrace_remove_method(char *className, int className_len, char *methodName, int methodName_len,
+		zend_bool dontTouchMisplacedMethods)
+{
+	zend_class_entry *ce, *ancestorClass = NULL;
+	zend_function *fe;
+
+	/* Fetch class method */
+	if(DeepTrace_fetch_class_method(className, className_len, methodName, methodName_len,
+			&ce, &fe TSRMLS_CC) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unknown class method '%s::%s()'.", className, methodName);
+		return FAILURE;
+	}
+
+	/* Convert method name to lowercase */
+	methodName = zend_str_tolower_dup(methodName, methodName_len);
+	ancestorClass = fe->common.scope;
+
+	/* Update childrens and delete method */
+	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_clean_children_methods,
+			5, ancestorClass, ce, methodName, methodName_len, fe);
+	DeepTrace_clear_all_functions_runtime_cache();
+	if(zend_hash_del(&ce->function_table, methodName, methodName_len + 1) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to remove method '%s::%s()'.", className, methodName);
+		efree(methodName);
+		return FAILURE;
+	}
+
+	/* Remove method in misplaced methods hash table */
+	if(ce->type != ZEND_USER_CLASS && !dontTouchMisplacedMethods) {
+		DeepTrace_misplaced_methods(DEEPTRACE_MISPLACED_METHOD_REMOVE, className, className_len,
+				methodName, methodName_len);
+	}
+
+	efree(methodName);
+	DEEPTRACE_DEL_MAGIC_METHOD(ce, fe);
+	return SUCCESS;
+}
+/* }}} */
+
+/* {{{ DeepTrace_destroy_misplaced_methods */
+static int DeepTrace_destroy_misplaced_methods(zend_hash_key *hashKey TSRMLS_DC)
+{
+	if(!hashKey->nKeyLength) return ZEND_HASH_APPLY_REMOVE;
+
+	char *className, *methodName;
+	className = strtok((char *) hashKey->arKey, "\1");
+	methodName = strtok(NULL, "\1");
+	DeepTrace_remove_method(className, strlen(className), methodName, strlen(methodName), 1);
+
+	return ZEND_HASH_APPLY_REMOVE;
+}
+/* }}} */
+
+/* {{{ DeepTrace_methods_cleanup */
+void DeepTrace_methods_cleanup()
+{
+	if(DEEPTRACE_G(misplaced_internal_methods)) {
+		zend_hash_apply(DEEPTRACE_G(misplaced_internal_methods),
+						(apply_func_t) DeepTrace_destroy_misplaced_methods TSRMLS_CC);
+		zend_hash_destroy(DEEPTRACE_G(misplaced_internal_methods));
+		FREE_HASHTABLE(DEEPTRACE_G(misplaced_internal_methods));
+	}
 }
 /* }}} */
 
@@ -278,7 +395,7 @@ PHP_FUNCTION(dt_add_method)
 	DEEPTRACE_DECL_STRING_PARAM(methodName);
 	DEEPTRACE_DECL_STRING_PARAM(arguments);
 	DEEPTRACE_DECL_STRING_PARAM(phpcode);
-	zend_class_entry *ce, *anchorClass = NULL;
+	zend_class_entry *ce, *ancestorClass = NULL;
 	zend_function func, *fe;
 	long flags = ZEND_ACC_PUBLIC;
 	ulong hash;
@@ -307,7 +424,7 @@ PHP_FUNCTION(dt_add_method)
 		efree(methodName);
 		RETURN_FALSE;
 	}
-	anchorClass = ce;
+	ancestorClass = ce;
 
 	/* Check if new method name is free */
 	if(zend_hash_quick_exists(&ce->function_table, methodName, methodName_len + 1, hash)) {
@@ -346,8 +463,7 @@ PHP_FUNCTION(dt_add_method)
 	}
 
 	/* Add method to hash table */
-	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_update_children_methods,
-			5, anchorClass, ce, &func, methodName, methodName_len);
+	DeepTrace_clear_all_functions_runtime_cache();
 	if(zend_hash_quick_add(&ce->function_table, methodName, methodName_len + 1, hash,
 			&func, sizeof(zend_function), NULL) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to add method '%s::%s()'", className, methodName);
@@ -372,7 +488,18 @@ PHP_FUNCTION(dt_add_method)
 		RETURN_FALSE;
 	}
 
-	DT_ADD_MAGIC_METHOD(ce, methodName, fe);
+	/* Add method in misplaced methods hash table */
+	if(ce->type != ZEND_USER_CLASS) {
+		DeepTrace_misplaced_methods(DEEPTRACE_MISPLACED_METHOD_ADD, className, className_len,
+				methodName, methodName_len);
+	}
+
+	fe->common.scope = ce;
+	fe->common.prototype = DeepTrace_get_method_prototype(ce->parent, methodName, methodName_len TSRMLS_CC);
+	DEEPTRACE_ADD_MAGIC_METHOD(ce, methodName, methodName_len, fe, NULL);
+	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_update_children_methods,
+				6, ancestorClass, ce, &func, methodName, methodName_len, NULL);
+
 	efree(methodName);
 	RETURN_TRUE;
 }
@@ -384,7 +511,7 @@ PHP_FUNCTION(dt_rename_method)
 	DEEPTRACE_DECL_STRING_PARAM(className);
 	DEEPTRACE_DECL_STRING_PARAM(oldMethodName);
 	DEEPTRACE_DECL_STRING_PARAM(newMethodName);
-	zend_class_entry *ce, *anchorClass = NULL;
+	zend_class_entry *ce, *ancestorClass = NULL;
 	zend_function *fe, func;
 	ulong oldMethodHash, newMethodHash;
 
@@ -423,9 +550,11 @@ PHP_FUNCTION(dt_rename_method)
 	}
 
 	/* Get anchor class and function pointer */
-	anchorClass = fe->common.scope;
+	ancestorClass = fe->common.scope;
 	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_clean_children_methods,
-			4, anchorClass, ce, oldMethodName, oldMethodName_len);
+			4, ancestorClass, ce, oldMethodName, oldMethodName_len);
+	DeepTrace_clear_all_functions_runtime_cache();
+
 	func = *fe;
 	function_add_ref(&func);
 
@@ -453,6 +582,8 @@ PHP_FUNCTION(dt_rename_method)
 		RETURN_FALSE;
 	}
 
+	DEEPTRACE_DEL_MAGIC_METHOD(ce, fe);
+
 	/* Locate new method in hash table */
 	if(DeepTrace_fetch_class_method(className, className_len, newMethodName, newMethodName_len,
 			&ce, &fe TSRMLS_CC) == FAILURE) {
@@ -463,11 +594,19 @@ PHP_FUNCTION(dt_rename_method)
 		RETURN_FALSE;
 	}
 
+	/* Rename method in misplaced methods hash table */
+	if(ce->type != ZEND_USER_CLASS) {
+		DeepTrace_misplaced_methods(DEEPTRACE_MISPLACED_METHOD_REMOVE, className, className_len,
+				oldMethodName, oldMethodName_len);
+		DeepTrace_misplaced_methods(DEEPTRACE_MISPLACED_METHOD_ADD, className, className_len,
+				newMethodName, newMethodName_len);
+	}
+
+	DEEPTRACE_ADD_MAGIC_METHOD(ce, newMethodName, newMethodName_len, fe, NULL);
+	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_update_children_methods,
+			6, ce, ce, fe, newMethodName, newMethodName_len, NULL);
 	efree(oldMethodName);
 	efree(newMethodName);
-	DT_ADD_MAGIC_METHOD(ce, newMethodName, fe);
-	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_update_children_methods,
-			5, ce, ce, fe, newMethodName, newMethodName_len);
 	RETURN_TRUE;
 }
 /* }}} */
@@ -477,8 +616,6 @@ PHP_FUNCTION(dt_remove_method)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);
 	DEEPTRACE_DECL_STRING_PARAM(methodName);
-	zend_class_entry *ce, *anchorClass = NULL;
-	zend_function *fe;
 
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
 			DEEPTRACE_STRING_PARAM(className),
@@ -492,28 +629,11 @@ PHP_FUNCTION(dt_remove_method)
 		RETURN_FALSE;
 	}
 
-	/* Fetch class method */
-	if(DeepTrace_fetch_class_method(className, className_len, methodName, methodName_len,
-			&ce, &fe TSRMLS_CC) == FAILURE) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unknown class method '%s::%s()'.", className, methodName);
+	/* Call internal removal function */
+	if(DeepTrace_remove_method(className, className_len, methodName, methodName_len, 0) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	/* Convert method name to lowercase */
-	methodName = zend_str_tolower_dup(methodName, methodName_len);
-	anchorClass = fe->common.scope;
-
-	/* Update childrens and delete method */
-	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_clean_children_methods,
-			4, anchorClass, ce, methodName, methodName_len);
-	if(zend_hash_del(&ce->function_table, methodName, methodName_len + 1) == FAILURE) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to remove method '%s::%s()'.", className, methodName);
-		efree(methodName);
-		RETURN_FALSE;
-	}
-
-	efree(methodName);
-	DT_DEL_MAGIC_METHOD(ce, fe);
 	RETURN_TRUE;
 }
 /* }}} */
@@ -566,28 +686,5 @@ PHP_FUNCTION(dt_set_static_method_variable)
 
 	efree(methodName);
 	RETURN_TRUE;
-}
-/* }}} */
-
-/* {{{ PHP_FUNCTION(dt_fix_static_method_calls) */
-PHP_FUNCTION(dt_fix_static_method_calls)
-{
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &DEEPTRACE_G(fixStaticMethodCalls)) == FAILURE) {
-		RETURN_FALSE;
-	}
-	RETURN_TRUE;
-}
-/* }}} */
-
-/* {{{ DeepTrace_static_method_call_handler */
-int DeepTrace_static_method_call_handler(ZEND_OPCODE_HANDLER_ARGS)
-{
-	if(DEEPTRACE_G(fixStaticMethodCalls)) {
-		if(EX(opline)->op1_type == IS_CONST)
-			EG(active_op_array)->run_time_cache[EX(opline)->op1.literal->cache_slot] = 0;
-		if(EX(opline)->op2_type == IS_CONST)
-			EG(active_op_array)->run_time_cache[EX(opline)->op2.literal->cache_slot] = 0;
-	}
-	return ZEND_USER_OPCODE_DISPATCH;
 }
 /* }}} */
