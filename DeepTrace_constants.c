@@ -57,7 +57,7 @@ PHP_FUNCTION(dt_remove_constant)
 
 	/* Output safety warning for persistent constants */
 	if(constant->flags & CONST_PERSISTENT) {
-		php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Constant '%s' is persistent. You should not touch it.");
+		php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Constant '%s' is persistent. You should not touch it.", constantName);
 	}
 
 	/* Get constant name and hash */
