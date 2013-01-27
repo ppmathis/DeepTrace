@@ -357,6 +357,7 @@ PHP_FUNCTION(dt_destroy_function_data)
 	}
 
 	/* Convert function name to lowercase and get hash */
+	functionName = zend_str_tolower_dup(functionName, functionName_len);
 	hash = zend_inline_hash_func(functionName, functionName_len + 1);
 	if(DeepTrace_fetch_function(functionName, functionName_len, &func, 0, hash TSRMLS_CC) == FAILURE) {
 		efree(functionName);
