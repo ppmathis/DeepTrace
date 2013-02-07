@@ -1,5 +1,0 @@
-// $Id$
-
-if(PHP_DEEPTRACE != "no") {
-	EXTENSION("DeepTrace", "DeepTrace.c DeepTrace_misc.c")
-}
