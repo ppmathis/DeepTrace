@@ -152,6 +152,7 @@ void DeepTrace_init_globals(zend_DeepTrace_globals *globals)
 
 	globals->misplaced_internal_functions = NULL;
 	globals->replaced_internal_functions = NULL;
+	globals->misplaced_internal_methods = NULL;
 }
 /* }}} */
 
@@ -206,9 +207,9 @@ PHP_RINIT_FUNCTION(DeepTrace)
 /* {{{ PHP_RSHUTDOWN_FUNCTION(DeepTrace) */
 PHP_RSHUTDOWN_FUNCTION(DeepTrace)
 {
-	DeepTrace_exit_cleanup();
-	DeepTrace_functions_cleanup();
-	DeepTrace_methods_cleanup();
+	DeepTrace_exit_cleanup(TSRMLS_C);
+	DeepTrace_functions_cleanup(TSRMLS_C);
+	DeepTrace_methods_cleanup(TSRMLS_C);
 
 	return SUCCESS;
 }

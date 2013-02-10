@@ -101,7 +101,7 @@ static int DeepTrace_delete_user_functions(void *dest TSRMLS_DC)
 /* }}} */
 
 /* {{{ DeepTrace_functions_cleanup */
-void DeepTrace_functions_cleanup()
+void DeepTrace_functions_cleanup(TSRMLS_D)
 {
 	if(DEEPTRACE_G(misplaced_internal_functions)) {
 		zend_hash_apply(DEEPTRACE_G(misplaced_internal_functions),
@@ -112,7 +112,7 @@ void DeepTrace_functions_cleanup()
 
 	if(DEEPTRACE_G(replaced_internal_functions)) {
 		zend_hash_apply_with_arguments(DEEPTRACE_G(replaced_internal_functions) TSRMLS_CC,
-				(apply_func_args_t) DeepTrace_restore_internal_functions, 1 TSRMLS_C);
+				(apply_func_args_t) DeepTrace_restore_internal_functions, 1);
 		zend_hash_destroy(DEEPTRACE_G(replaced_internal_functions));
 		FREE_HASHTABLE(DEEPTRACE_G(replaced_internal_functions));
 	}

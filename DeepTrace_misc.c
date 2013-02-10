@@ -23,7 +23,7 @@
 
 /* {{{ setproctitle */
 #ifndef DEEPTRACE_SYSTEM_PROVIDES_SETPROCTITLE
-static zend_bool setproctitle(char *title, int title_len)
+static zend_bool setproctitle(char *title, int title_len TSRMLS_DC)
 {
 	char buffer[DEEPTRACE_PROCTITLE_MAX_LEN];
 
@@ -59,7 +59,7 @@ PHP_FUNCTION(dt_set_proctitle)
 
 #ifndef DEEPTRACE_SYSTEM_PROVIDES_SETPROCTITLE
 	/* Local setproctitle function if there is no native call */
-	if(EXPECTED(setproctitle(title, title_len) == SUCCESS)) RETURN_TRUE;
+	if(EXPECTED(setproctitle(title, title_len TSRMLS_CC) == SUCCESS)) RETURN_TRUE;
 	RETURN_FALSE;
 #else
 	/* Use the native call when it is available */

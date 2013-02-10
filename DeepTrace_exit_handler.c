@@ -63,7 +63,7 @@ static zval *DeepTrace_get_zval_ptr(int op_type, znode_op *node, zval **freeval,
 /* }}} */
 
 /* {{{ DeepTrace_exit_cleanup */
-void DeepTrace_exit_cleanup()
+void DeepTrace_exit_cleanup(TSRMLS_D)
 {
 	/* Clean up old exit handler if there is one */
 	zend_fcall_info *fci = &DEEPTRACE_G(exitHandler).fci;
@@ -167,7 +167,7 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 /* }}} */
 
 /* {{{ DeepTrace_exit_set_handler */
-static int DeepTrace_exit_set_handler(user_opcode_handler_t handler, deeptrace_opcode_handler_t userHandler)
+static int DeepTrace_exit_set_handler(user_opcode_handler_t handler, deeptrace_opcode_handler_t userHandler TSRMLS_DC)
 {
 	/* Check if custom opcode hook was successful during module initialization */
 	if(UNEXPECTED(handler != zend_get_user_opcode_handler(ZEND_EXIT))) {
@@ -177,7 +177,7 @@ static int DeepTrace_exit_set_handler(user_opcode_handler_t handler, deeptrace_o
 	}
 
 	/* Set the new handler */
-	DeepTrace_exit_cleanup();
+	DeepTrace_exit_cleanup(TSRMLS_C);
 	DEEPTRACE_G(exitHandler).fci = userHandler.fci;
 	DEEPTRACE_G(exitHandler).fcc = userHandler.fcc;
 	Z_ADDREF_P(DEEPTRACE_G(exitHandler).fci.function_name);
@@ -203,7 +203,7 @@ PHP_FUNCTION(dt_exit_mode) {
 	case 1:
 		/* DEEPTRACE_EXIT_NORMAL */
 		if(EXPECTED(exitMode == DEEPTRACE_EXIT_NORMAL)) {
-			DeepTrace_exit_cleanup();
+			DeepTrace_exit_cleanup(TSRMLS_C);
 			DEEPTRACE_G(exitMode) = DEEPTRACE_EXIT_NORMAL;
 
 			RETURN_TRUE;
@@ -212,10 +212,10 @@ PHP_FUNCTION(dt_exit_mode) {
 	case 2:
 		/* DEEPTRACE_EXIT_HANDLER */
 		if(EXPECTED(exitMode == DEEPTRACE_EXIT_HANDLER)) {
-			DeepTrace_exit_cleanup();
+			DeepTrace_exit_cleanup(TSRMLS_C);
 
 			/* Set handler */
-			if(UNEXPECTED(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction) != SUCCESS))
+			if(UNEXPECTED(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction TSRMLS_CC) != SUCCESS))
 				RETURN_FALSE;
 
 			/* Create instance of exception class */
@@ -227,10 +227,10 @@ PHP_FUNCTION(dt_exit_mode) {
 	case 3:
 		/* DEEPTRACE_EXIT_EXCEPTION */
 		if(EXPECTED(exitMode == DEEPTRACE_EXIT_EXCEPTION)) {
-			DeepTrace_exit_cleanup();
+			DeepTrace_exit_cleanup(TSRMLS_C);
 
 			/* Set handler */
-			if(UNEXPECTED(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction) != SUCCESS))
+			if(UNEXPECTED(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction TSRMLS_CC) != SUCCESS))
 				RETURN_FALSE;
 
 			/* Create exception class */
