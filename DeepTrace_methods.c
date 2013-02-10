@@ -287,7 +287,7 @@ static int DeepTrace_clean_children_methods(zend_class_entry *ce TSRMLS_DC, int 
 static void DeepTrace_misplaced_methods_destructor(void *pElement)
 {
 	zend_hash_key *hashKey = (zend_hash_key *) pElement;
-	efree(hashKey->arKey);
+	efree((void*) hashKey->arKey);
 }
 /* }}} */
 

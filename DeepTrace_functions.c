@@ -75,7 +75,7 @@ static int DeepTrace_destroy_misplaced_functions(zend_hash_key *hashKey TSRMLS_D
 {
 	if(!hashKey->nKeyLength) return ZEND_HASH_APPLY_REMOVE;
 	zend_hash_del(EG(function_table), hashKey->arKey, hashKey->nKeyLength);
-	efree(hashKey->arKey);
+	efree((void*) hashKey->arKey);
 	return ZEND_HASH_APPLY_REMOVE;
 }
 /* }}} */
