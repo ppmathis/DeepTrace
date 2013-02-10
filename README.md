@@ -4,14 +4,6 @@
 #### License information
 The code is licensed via the Apache License 2.0: http://www.apache.org/licenses/LICENSE-2.0
 
-Means:
-
-* You may alter the code, but have to give the changes back
-* You may not use this work for commercial purposes
-* You must attribute the work in the manner specified by the author or licensor
-
-If you would like to use this code commercially, please contact us via pmathis@snapserv.net. Thank you!
-
 #### What is DeepTrace?
 DeepTrace is a small and neat extension for different low level things in PHP. You can:
 
