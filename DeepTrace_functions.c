@@ -28,13 +28,13 @@ static int DeepTrace_fetch_function(char *funcName, int funcName_len, zend_funct
 	zend_function *func;
 
 	/* Find function in hash table */
-	if(zend_hash_quick_find(EG(function_table), funcName, funcName_len + 1, hash, (void**) &func) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_find(EG(function_table), funcName, funcName_len + 1, hash, (void**) &func) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function %s() does not exist.", funcName);
 		return FAILURE;
 	}
 
 	/* Check if function is a special function which should not be touched */
-	if(func->type != ZEND_USER_FUNCTION && func->type != ZEND_INTERNAL_FUNCTION) {
+	if(UNEXPECTED(func->type != ZEND_USER_FUNCTION && func->type != ZEND_INTERNAL_FUNCTION)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s() is not a user / internal function.", funcName);
 		return FAILURE;
 	}
@@ -44,7 +44,7 @@ static int DeepTrace_fetch_function(char *funcName, int funcName_len, zend_funct
 	/* Store modifications for internal functions */
 	if(func->type == ZEND_INTERNAL_FUNCTION && flag >= DEEPTRACE_FUNCTION_REMOVE) {
 		/* Allocate hash table if necessary */
-		if(!DEEPTRACE_G(replaced_internal_functions)) {
+		if(UNEXPECTED(!DEEPTRACE_G(replaced_internal_functions))) {
 			ALLOC_HASHTABLE(DEEPTRACE_G(replaced_internal_functions));
 			zend_hash_init(DEEPTRACE_G(replaced_internal_functions), 4, NULL, NULL, 0);
 		}
@@ -55,7 +55,7 @@ static int DeepTrace_fetch_function(char *funcName, int funcName_len, zend_funct
 			zend_hash_key hashKey;
 
 			/* Allocate hash table if necessary */
-			if(!DEEPTRACE_G(misplaced_internal_functions)) {
+			if(UNEXPECTED(!DEEPTRACE_G(misplaced_internal_functions))) {
 				ALLOC_HASHTABLE(DEEPTRACE_G(misplaced_internal_functions));
 				zend_hash_init(DEEPTRACE_G(misplaced_internal_functions), 4, NULL, NULL, 0);
 			}
@@ -190,9 +190,9 @@ PHP_FUNCTION(dt_rename_function)
 	zend_function *oldFunc, newFunc;
 	ulong oldFuncHash, newFuncHash;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
 			DEEPTRACE_STRING_PARAM(oldFuncName),
-			DEEPTRACE_STRING_PARAM(newFuncName)) == FAILURE) {
+			DEEPTRACE_STRING_PARAM(newFuncName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -203,7 +203,7 @@ PHP_FUNCTION(dt_rename_function)
 	newFuncHash = zend_inline_hash_func(newFuncName, newFuncName_len + 1);
 
 	/* Check if new function name is free / not already in use */
-	if(zend_hash_quick_exists(EG(function_table), newFuncName, newFuncName_len + 1, newFuncHash)) {
+	if(UNEXPECTED(zend_hash_quick_exists(EG(function_table), newFuncName, newFuncName_len + 1, newFuncHash))) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "New function name %s() is already in use.", newFuncName);
 		efree(oldFuncName);
 		efree(newFuncName);
@@ -211,8 +211,8 @@ PHP_FUNCTION(dt_rename_function)
 	}
 
 	/* Check if old function exists */
-	if(DeepTrace_fetch_function(oldFuncName, oldFuncName_len, &oldFunc,
-			DEEPTRACE_FUNCTION_RENAME, oldFuncHash TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_function(oldFuncName, oldFuncName_len, &oldFunc,
+			DEEPTRACE_FUNCTION_RENAME, oldFuncHash TSRMLS_CC) == FAILURE)) {
 		efree(oldFuncName);
 		efree(newFuncName);
 		RETURN_FALSE;
@@ -223,7 +223,7 @@ PHP_FUNCTION(dt_rename_function)
 	function_add_ref(&newFunc);
 
 	/* Remove old function reference from hashtable */
-	if(zend_hash_quick_del(EG(function_table), oldFuncName, oldFuncName_len + 1, oldFuncHash) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_del(EG(function_table), oldFuncName, oldFuncName_len + 1, oldFuncHash) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove old reference to function %s().", oldFuncName);
 		efree(oldFuncName);
 		efree(newFuncName);
@@ -237,8 +237,8 @@ PHP_FUNCTION(dt_rename_function)
 	}
 
 	/* Add new function reference */
-	if(zend_hash_quick_add(EG(function_table), newFuncName, newFuncName_len + 1,
-			newFuncHash, &newFunc, sizeof(zend_function), NULL) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_add(EG(function_table), newFuncName, newFuncName_len + 1,
+			newFuncHash, &newFunc, sizeof(zend_function), NULL) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not create new reference to function %s().", newFuncName);
 		zend_function_dtor(&newFunc);
 		efree(oldFuncName);
@@ -259,8 +259,8 @@ PHP_FUNCTION(dt_remove_function)
 	DEEPTRACE_DECL_STRING_PARAM(functionName);
 	ulong hash;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
-			DEEPTRACE_STRING_PARAM(functionName)) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+			DEEPTRACE_STRING_PARAM(functionName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -268,7 +268,7 @@ PHP_FUNCTION(dt_remove_function)
 	functionName = zend_str_tolower_dup(functionName, functionName_len);
 	hash = zend_inline_hash_func(functionName, functionName_len + 1);
 
-	if(!zend_hash_quick_exists(EG(function_table), functionName, functionName_len + 1, hash)) {
+	if(UNEXPECTED(!zend_hash_quick_exists(EG(function_table), functionName, functionName_len + 1, hash))) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Function %s does not exist.", functionName);
 		efree(functionName);
 		RETURN_FALSE;
@@ -280,8 +280,8 @@ PHP_FUNCTION(dt_remove_function)
 	}
 
 	/* DeepTrace internal stuff (so functions can be restored when a new request begins) */
-	if(DeepTrace_fetch_function(functionName, functionName_len, NULL,
-			DEEPTRACE_FUNCTION_REMOVE, hash TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_function(functionName, functionName_len, NULL,
+			DEEPTRACE_FUNCTION_REMOVE, hash TSRMLS_CC) == FAILURE)) {
 		efree(functionName);
 		RETURN_FALSE;
 	}
@@ -304,10 +304,10 @@ PHP_FUNCTION(dt_set_static_function_variable)
 	zend_function *func;
 	zend_uchar isRef;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz",
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssz",
 			DEEPTRACE_STRING_PARAM(functionName),
 			DEEPTRACE_STRING_PARAM(variableName),
-			&value) == FAILURE) {
+			&value) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -317,15 +317,15 @@ PHP_FUNCTION(dt_set_static_function_variable)
 	variableHash = zend_inline_hash_func(variableName, variableName_len + 1);
 
 	/* Fetch function */
-	if(DeepTrace_fetch_function(functionName, functionName_len, &func,
-			DEEPTRACE_FUNCTION_SET_STATIC_VAR, functionHash TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_function(functionName, functionName_len, &func,
+			DEEPTRACE_FUNCTION_SET_STATIC_VAR, functionHash TSRMLS_CC) == FAILURE)) {
 		efree(functionName);
 		RETURN_FALSE;
 	}
 
 	/* Get pointer to static variable */
-	if(func->op_array.static_variables == NULL || zend_hash_quick_find(func->op_array.static_variables,
-			variableName, variableName_len + 1, variableHash, (void **) &variablePointer) == FAILURE) {
+	if(UNEXPECTED(func->op_array.static_variables == NULL || zend_hash_quick_find(func->op_array.static_variables,
+			variableName, variableName_len + 1, variableHash, (void **) &variablePointer) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Static variable %s does not exist.", variableName);
 		efree(functionName);
 		RETURN_FALSE;
@@ -351,15 +351,15 @@ PHP_FUNCTION(dt_destroy_function_data)
 	zend_function *func;
 	ulong hash;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
-			DEEPTRACE_STRING_PARAM(functionName)) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+			DEEPTRACE_STRING_PARAM(functionName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 	/* Convert function name to lowercase and get hash */
 	functionName = zend_str_tolower_dup(functionName, functionName_len);
 	hash = zend_inline_hash_func(functionName, functionName_len + 1);
-	if(DeepTrace_fetch_function(functionName, functionName_len, &func, 0, hash TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_function(functionName, functionName_len, &func, 0, hash TSRMLS_CC) == FAILURE)) {
 		efree(functionName);
 		RETURN_FALSE;
 	}

@@ -28,7 +28,7 @@ static zend_bool setproctitle(char *title, int title_len)
 	char buffer[DEEPTRACE_PROCTITLE_MAX_LEN];
 
 	/* When there is no argv0 available, we can not do anything. */
-	if(!DEEPTRACE_G(argv0)) {
+	if(UNEXPECTED(!DEEPTRACE_G(argv0))) {
 		return FAILURE;
 	}
 
@@ -53,17 +53,17 @@ PHP_FUNCTION(dt_set_proctitle)
 {
 	DEEPTRACE_DECL_STRING_PARAM(title);
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(title)) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(title)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 #ifndef DEEPTRACE_SYSTEM_PROVIDES_SETPROCTITLE
 	/* Local setproctitle function if there is no native call */
-	if(setproctitle(title, title_len) == SUCCESS) RETURN_TRUE;
+	if(EXPECTED(setproctitle(title, title_len) == SUCCESS)) RETURN_TRUE;
 	RETURN_FALSE;
 #else
 	/* Use the native call when it is available */
-	if(setproctitle("%s", title)) RETURN_TRUE;
+	if(EXPECTED(setproctitle("%s", title))) RETURN_TRUE;
 	RETURN_FALSE;
 #endif
 }
@@ -74,7 +74,7 @@ PHP_FUNCTION(dt_phpinfo_mode)
 {
 	zend_bool phpinfoMode;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &phpinfoMode) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &phpinfoMode) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -89,7 +89,7 @@ PHP_FUNCTION(dt_remove_include)
 	DEEPTRACE_DECL_STRING_PARAM(includeName);
 	DEEPTRACE_DECL_STRING_PARAM(absolutePath);
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(includeName)) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(includeName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -99,7 +99,7 @@ PHP_FUNCTION(dt_remove_include)
 	absolutePath_len = strlen(absolutePath);
 
 	/* Remove include */
-	if(zend_hash_del(&EG(included_files), absolutePath, absolutePath_len + 1) == FAILURE) {
+	if(UNEXPECTED(zend_hash_del(&EG(included_files), absolutePath, absolutePath_len + 1) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove include: %s", absolutePath);
 		efree(absolutePath);
 		RETURN_FALSE;
@@ -117,7 +117,7 @@ PHP_FUNCTION(dt_inspect_zval)
 	char *addr;
 	int addr_len;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &val) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &val) == FAILURE)) {
 		RETURN_FALSE;
 	}
 

@@ -58,7 +58,7 @@ static int DeepTrace_generate_lambda_method(char *arguments, int arguments_len, 
 	snprintf(evalCode, evalCode_len, "function " DEEPTRACE_TEMP_FUNCNAME "(%s){%s}", arguments, phpcode);
 
 	evalName = zend_make_compiled_string_description("DeepTrace RTC function" TSRMLS_CC);
-	if(zend_eval_stringl(evalCode, evalCode_len - 1, NULL, evalName TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(zend_eval_stringl(evalCode, evalCode_len - 1, NULL, evalName TSRMLS_CC) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Cannot create temporary function '%s'.", DEEPTRACE_TEMP_FUNCNAME);
 		efree(evalCode);
 		efree(evalName);
@@ -68,8 +68,8 @@ static int DeepTrace_generate_lambda_method(char *arguments, int arguments_len, 
 	efree(evalCode);
 	efree(evalName);
 
-	if(zend_hash_find(EG(function_table), DEEPTRACE_TEMP_FUNCNAME, sizeof(DEEPTRACE_TEMP_FUNCNAME),
-			(void *) pfe) == FAILURE) {
+	if(UNEXPECTED(zend_hash_find(EG(function_table), DEEPTRACE_TEMP_FUNCNAME, sizeof(DEEPTRACE_TEMP_FUNCNAME),
+			(void *) pfe) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unexpected inconsistency while trying to create lambda method.");
 		return FAILURE;
 	}
@@ -91,7 +91,7 @@ static int DeepTrace_fetch_class_int(char *className, int className_len, zend_cl
 	lowerClassName = zend_str_tolower_dup(className, className_len);
 
 	/* Fetch class from hash table */
-	if(zend_hash_find(EG(class_table), lowerClassName, className_len + 1, (void **) &ze) == FAILURE || !ze || !*ze) {
+	if(UNEXPECTED(zend_hash_find(EG(class_table), lowerClassName, className_len + 1, (void **) &ze) == FAILURE || !ze || !*ze)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Class '%s' not found.", lowerClassName);
 		efree(lowerClassName);
 		return FAILURE;
@@ -110,7 +110,7 @@ static int DeepTrace_fetch_class(char *className, int className_len, zend_class_
 	zend_class_entry *ce;
 
 	/* Fetch class */
-	if(DeepTrace_fetch_class_int(className, className_len, &ce TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_class_int(className, className_len, &ce TSRMLS_CC) == FAILURE)) {
 		return FAILURE;
 	}
 
@@ -122,7 +122,7 @@ static int DeepTrace_fetch_class(char *className, int className_len, zend_class_
 	}
 
 	/* Check if it is a interface */
-	if(ce->ce_flags & ZEND_ACC_INTERFACE) {
+	if(UNEXPECTED(ce->ce_flags & ZEND_ACC_INTERFACE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Class '%s' is an interface.", className);
 		return FAILURE;
 	}
@@ -140,7 +140,7 @@ static int DeepTrace_fetch_class_method(char *className, int className_len, char
 	zend_function *fe;
 
 	/* Fetch class */
-	if(DeepTrace_fetch_class_int(className, className_len, &ce TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_class_int(className, className_len, &ce TSRMLS_CC) == FAILURE)) {
 		return FAILURE;
 	}
 
@@ -154,7 +154,7 @@ static int DeepTrace_fetch_class_method(char *className, int className_len, char
 
 	/* Convert method name to lowercase and fetch method */
 	methodName = zend_str_tolower_dup(methodName, methodName_len);
-	if(zend_hash_find(&ce->function_table, methodName, methodName_len + 1, (void **) &fe) == FAILURE) {
+	if(UNEXPECTED(zend_hash_find(&ce->function_table, methodName, methodName_len + 1, (void **) &fe) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Method %s::%s() not found", className, methodName);
 		efree(methodName);
 		return FAILURE;
@@ -211,14 +211,14 @@ static int DeepTrace_update_children_methods(zend_class_entry *ce TSRMLS_DC, int
 	}
 
 	/* Update child class */
-	if(cfe && zend_hash_quick_del(&ce->function_table, funcName, funcName_len + 1, hash) == FAILURE) {
+	if(UNEXPECTED(cfe && zend_hash_quick_del(&ce->function_table, funcName, funcName_len + 1, hash) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unexpected inconsistency while updating child class.");
 		efree(funcName);
 		return ZEND_HASH_APPLY_KEEP;
 	}
 
-	if(zend_hash_quick_add(&ce->function_table, funcName, funcName_len + 1, hash,
-			fe, sizeof(zend_function), NULL) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_add(&ce->function_table, funcName, funcName_len + 1, hash,
+			fe, sizeof(zend_function), NULL) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unexpected inconsistency while updating child class.");
 		efree(funcName);
 		return ZEND_HASH_APPLY_KEEP;
@@ -336,8 +336,8 @@ static int DeepTrace_remove_method(char *className, int className_len, char *met
 	zend_function *fe;
 
 	/* Fetch class method */
-	if(DeepTrace_fetch_class_method(className, className_len, methodName, methodName_len,
-			&ce, &fe TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_class_method(className, className_len, methodName, methodName_len,
+			&ce, &fe TSRMLS_CC) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unknown class method '%s::%s()'.", className, methodName);
 		return FAILURE;
 	}
@@ -350,7 +350,7 @@ static int DeepTrace_remove_method(char *className, int className_len, char *met
 	zend_hash_apply_with_arguments(EG(class_table) TSRMLS_CC, (apply_func_args_t) DeepTrace_clean_children_methods,
 			5, ancestorClass, ce, methodName, methodName_len, fe);
 	DeepTrace_clear_all_functions_runtime_cache();
-	if(zend_hash_del(&ce->function_table, methodName, methodName_len + 1) == FAILURE) {
+	if(UNEXPECTED(zend_hash_del(&ce->function_table, methodName, methodName_len + 1) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to remove method '%s::%s()'.", className, methodName);
 		efree(methodName);
 		return FAILURE;
@@ -406,17 +406,17 @@ PHP_FUNCTION(dt_add_method)
 	long flags = ZEND_ACC_PUBLIC;
 	ulong hash;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssss|l",
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ssss|l",
 			DEEPTRACE_STRING_PARAM(className),
 			DEEPTRACE_STRING_PARAM(methodName),
 			DEEPTRACE_STRING_PARAM(arguments),
 			DEEPTRACE_STRING_PARAM(phpcode),
-			&flags) == FAILURE) {
+			&flags) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 	/* Check parameters */
-	if(!className_len || !methodName_len) {
+	if(UNEXPECTED(!className_len || !methodName_len)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Empty parameters given.");
 		RETURN_FALSE;
 	}
@@ -426,21 +426,21 @@ PHP_FUNCTION(dt_add_method)
 	hash = zend_inline_hash_func(methodName, methodName_len + 1);
 
 	/* Fetch class */
-	if(DeepTrace_fetch_class(className, className_len, &ce TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_class(className, className_len, &ce TSRMLS_CC) == FAILURE)) {
 		efree(methodName);
 		RETURN_FALSE;
 	}
 	ancestorClass = ce;
 
 	/* Check if new method name is free */
-	if(zend_hash_quick_exists(&ce->function_table, methodName, methodName_len + 1, hash)) {
+	if(UNEXPECTED(zend_hash_quick_exists(&ce->function_table, methodName, methodName_len + 1, hash))) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Method '%s::%s()' already exists.", className, methodName);
 		efree(methodName);
 		RETURN_FALSE;
 	}
 
 	/* Generate lambda method */
-	if(DeepTrace_generate_lambda_method(arguments, arguments_len, phpcode, phpcode_len, &fe TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_generate_lambda_method(arguments, arguments_len, phpcode, phpcode_len, &fe TSRMLS_CC) == FAILURE)) {
 		efree(methodName);
 		RETURN_FALSE;
 	}
@@ -470,15 +470,15 @@ PHP_FUNCTION(dt_add_method)
 
 	/* Add method to hash table */
 	DeepTrace_clear_all_functions_runtime_cache();
-	if(zend_hash_quick_add(&ce->function_table, methodName, methodName_len + 1, hash,
-			&func, sizeof(zend_function), NULL) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_add(&ce->function_table, methodName, methodName_len + 1, hash,
+			&func, sizeof(zend_function), NULL) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to add method '%s::%s()'", className, methodName);
 		efree(methodName);
 		RETURN_FALSE;
 	}
 
 	/* Remove temporary function from hash table */
-	if(zend_hash_del(EG(function_table), DEEPTRACE_TEMP_FUNCNAME, sizeof(DEEPTRACE_TEMP_FUNCNAME)) == FAILURE) {
+	if(UNEXPECTED(zend_hash_del(EG(function_table), DEEPTRACE_TEMP_FUNCNAME, sizeof(DEEPTRACE_TEMP_FUNCNAME)) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unable to remove temporary function '%s'.",
 				DEEPTRACE_TEMP_FUNCNAME);
 		efree(methodName);
@@ -486,8 +486,8 @@ PHP_FUNCTION(dt_add_method)
 	}
 
 	/* Locate new method */
-	if(zend_hash_quick_find(&ce->function_table, methodName, methodName_len + 1, hash,
-			(void **) &fe) == FAILURE || !fe) {
+	if(UNEXPECTED(zend_hash_quick_find(&ce->function_table, methodName, methodName_len + 1, hash,
+			(void **) &fe) == FAILURE || !fe)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unexpected consistency while locating new method '%s::%s'.",
 				className, methodName);
 		efree(methodName);
@@ -521,22 +521,22 @@ PHP_FUNCTION(dt_rename_method)
 	zend_function *fe, func;
 	ulong oldMethodHash, newMethodHash;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss",
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss",
 			DEEPTRACE_STRING_PARAM(className),
 			DEEPTRACE_STRING_PARAM(oldMethodName),
-			DEEPTRACE_STRING_PARAM(newMethodName)) == FAILURE) {
+			DEEPTRACE_STRING_PARAM(newMethodName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 	/* Check parameters */
-	if(!className_len || !oldMethodName_len || !newMethodName_len) {
+	if(UNEXPECTED(!className_len || !oldMethodName_len || !newMethodName_len)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Empty parameters given.");
 		RETURN_FALSE;
 	}
 
 	/* Fetch class method */
-	if(DeepTrace_fetch_class_method(className, className_len, oldMethodName, oldMethodName_len,
-			&ce, &fe TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_class_method(className, className_len, oldMethodName, oldMethodName_len,
+			&ce, &fe TSRMLS_CC) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unknown class method '%s::%s()'.", className, oldMethodName);
 		RETURN_FALSE;
 	}
@@ -548,7 +548,7 @@ PHP_FUNCTION(dt_rename_method)
 	newMethodHash = zend_inline_hash_func(newMethodName, newMethodName_len + 1);
 
 	/* Check if new method name is free */
-	if(zend_hash_quick_exists(&ce->function_table, newMethodName, newMethodName_len + 1, newMethodHash)) {
+	if(UNEXPECTED(zend_hash_quick_exists(&ce->function_table, newMethodName, newMethodName_len + 1, newMethodHash))) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Method '%s::%s()' already exists.", className, newMethodName);
 		efree(oldMethodName);
 		efree(newMethodName);
@@ -570,8 +570,8 @@ PHP_FUNCTION(dt_rename_method)
 	}
 
 	/* Add method in hash table */
-	if(zend_hash_quick_add(&ce->function_table, newMethodName, newMethodName_len + 1, newMethodHash,
-			&func, sizeof(zend_function), NULL) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_add(&ce->function_table, newMethodName, newMethodName_len + 1, newMethodHash,
+			&func, sizeof(zend_function), NULL) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to create new method '%s::%s()'.",
 				className, newMethodName);
 		efree(oldMethodName);
@@ -580,7 +580,7 @@ PHP_FUNCTION(dt_rename_method)
 	}
 
 	/* Remove old method in hash table */
-	if(zend_hash_quick_del(&ce->function_table, oldMethodName, oldMethodName_len + 1, oldMethodHash) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_del(&ce->function_table, oldMethodName, oldMethodName_len + 1, oldMethodHash) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to remove old method '%s::%s()'.",
 				className, newMethodName);
 		efree(oldMethodName);
@@ -591,8 +591,8 @@ PHP_FUNCTION(dt_rename_method)
 	DEEPTRACE_DEL_MAGIC_METHOD(ce, fe);
 
 	/* Locate new method in hash table */
-	if(DeepTrace_fetch_class_method(className, className_len, newMethodName, newMethodName_len,
-			&ce, &fe TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_class_method(className, className_len, newMethodName, newMethodName_len,
+			&ce, &fe TSRMLS_CC) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Unexpected consistency while locating new method '%s::%s'.",
 				className, newMethodName);
 		efree(oldMethodName);
@@ -623,20 +623,20 @@ PHP_FUNCTION(dt_remove_method)
 	DEEPTRACE_DECL_STRING_PARAM(className);
 	DEEPTRACE_DECL_STRING_PARAM(methodName);
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
 			DEEPTRACE_STRING_PARAM(className),
-			DEEPTRACE_STRING_PARAM(methodName)) == FAILURE) {
+			DEEPTRACE_STRING_PARAM(methodName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 	/* Check parameters */
-	if(!className_len || !methodName) {
+	if(UNEXPECTED(!className_len || !methodName)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Empty parameters given.");
 		RETURN_FALSE;
 	}
 
 	/* Call internal removal function */
-	if(DeepTrace_remove_method(className, className_len, methodName, methodName_len, 0) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_remove_method(className, className_len, methodName, methodName_len, 0) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -656,25 +656,25 @@ PHP_FUNCTION(dt_set_static_method_variable)
 	zend_uchar isRef;
 	int refcount;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sssz",
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sssz",
 			DEEPTRACE_STRING_PARAM(className),
 			DEEPTRACE_STRING_PARAM(methodName),
 			DEEPTRACE_STRING_PARAM(variableName),
-			&value) == FAILURE) {
+			&value) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 	/* Convert method name to lowercase */
 	methodName = zend_str_tolower_dup(methodName, methodName_len);
-	if(DeepTrace_fetch_class_method(className, className_len, methodName, methodName_len,
-			&ce, &func TSRMLS_CC) == FAILURE) {
+	if(UNEXPECTED(DeepTrace_fetch_class_method(className, className_len, methodName, methodName_len,
+			&ce, &func TSRMLS_CC) == FAILURE)) {
 		efree(methodName);
 		RETURN_FALSE;
 	}
 
 	/* Check if static variable exists */
-	if(func->op_array.static_variables == NULL || zend_hash_find(func->op_array.static_variables,
-			variableName, variableName_len + 1, (void **) &variablePointer) == FAILURE) {
+	if(UNEXPECTED(func->op_array.static_variables == NULL || zend_hash_find(func->op_array.static_variables,
+			variableName, variableName_len + 1, (void **) &variablePointer) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Static variable '%s' in method '%s::%s()' does not exist.",
 				className, methodName, variableName);
 		efree(methodName);

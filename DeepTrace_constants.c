@@ -30,7 +30,7 @@ PHP_FUNCTION(dt_remove_constant)
 	zend_constant *constant;
 	ulong hash;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(constantName)) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(constantName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -73,7 +73,7 @@ PHP_FUNCTION(dt_remove_constant)
 	hash = zend_inline_hash_func(constantName, constant->name_len);
 
 	/* Delete constant in hash table */
-	if(zend_hash_quick_del(EG(zend_constants), constantName, constant->name_len, hash) == FAILURE) {
+	if(UNEXPECTED(zend_hash_quick_del(EG(zend_constants), constantName, constant->name_len, hash) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove constant '%s'.", constantName);
 		if(caseSensitive) efree(constantName);
 		RETURN_FALSE;

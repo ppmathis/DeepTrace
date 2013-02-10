@@ -26,7 +26,7 @@ PHP_FUNCTION(dt_remove_class)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(className)) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(className)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
@@ -34,7 +34,7 @@ PHP_FUNCTION(dt_remove_class)
 	className = zend_str_tolower_dup(className, className_len);
 
 	/* Remove class in hash table */
-	if(zend_hash_del(EG(class_table), className, className_len + 1) == FAILURE) {
+	if(UNEXPECTED(zend_hash_del(EG(class_table), className, className_len + 1) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can not remove class, trait or interface '%s'.", className);
 		efree(className);
 		RETURN_FALSE;
@@ -52,13 +52,13 @@ PHP_FUNCTION(dt_destroy_class_data)
 	DEEPTRACE_DECL_STRING_PARAM(className);
 	zend_class_entry **class;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(className)) == FAILURE) {
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", DEEPTRACE_STRING_PARAM(className)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 	/* Make class name lowercase */
 	className = zend_str_tolower_dup(className, className_len);
-	if(zend_hash_find(EG(class_table), className, className_len + 1, (void **) &class) == FAILURE) {
+	if(UNEXPECTED(zend_hash_find(EG(class_table), className, className_len + 1, (void **) &class) == FAILURE)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Class '%s' not found.", className);
 		efree(className);
 		RETURN_FALSE;

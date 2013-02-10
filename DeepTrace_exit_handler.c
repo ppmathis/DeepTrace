@@ -113,7 +113,7 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 
 	/* Get exit message if there was one */
 	exitMsg = DeepTrace_get_zval_ptr(EX(opline)->op1_type, &EX(opline)->op1, &tmp, execute_data TSRMLS_CC);
-	if(exitMsg) zend_fcall_info_argn(&DEEPTRACE_G(exitHandler).fci TSRMLS_CC, 1, &exitMsg);
+	if(EXPECTED(exitMsg != NULL)) zend_fcall_info_argn(&DEEPTRACE_G(exitHandler).fci TSRMLS_CC, 1, &exitMsg);
 
 	/* Call user handler */
 	zend_fcall_info_call(&DEEPTRACE_G(exitHandler).fci, &DEEPTRACE_G(exitHandler).fcc, &retval, NULL TSRMLS_CC);
@@ -140,7 +140,7 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 		if(DEEPTRACE_G(exitMode) == DEEPTRACE_EXIT_EXCEPTION) {
 			DEEPTRACE_G(exitException)->parent = zend_exception_get_default(TSRMLS_C);
 
-			if(exitMsg) {
+			if(EXPECTED(exitMsg != NULL)) {
 				zval *message, *exception;
 
 				ALLOC_ZVAL(message);
@@ -170,7 +170,7 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 static int DeepTrace_exit_set_handler(user_opcode_handler_t handler, deeptrace_opcode_handler_t userHandler)
 {
 	/* Check if custom opcode hook was successful during module initialization */
-	if(handler != zend_get_user_opcode_handler(ZEND_EXIT)) {
+	if(UNEXPECTED(handler != zend_get_user_opcode_handler(ZEND_EXIT))) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Conflicting extension detected. "
 				"Make sure to load DeepTrace as a zend extension.");
 		return FAILURE;
@@ -193,16 +193,16 @@ PHP_FUNCTION(dt_exit_mode) {
 	DEEPTRACE_DECL_HANDLER_PARAM(handlerFunction);
 	DEEPTRACE_DECL_STRING_PARAM(exceptionName);
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|fs", &exitMode,
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|fs", &exitMode,
 			DEEPTRACE_HANDLER_PARAM(handlerFunction),
-			DEEPTRACE_STRING_PARAM(exceptionName)) == FAILURE) {
+			DEEPTRACE_STRING_PARAM(exceptionName)) == FAILURE)) {
 		RETURN_FALSE;
 	}
 
 	switch(ZEND_NUM_ARGS()) {
 	case 1:
 		/* DEEPTRACE_EXIT_NORMAL */
-		if(exitMode == DEEPTRACE_EXIT_NORMAL) {
+		if(EXPECTED(exitMode == DEEPTRACE_EXIT_NORMAL)) {
 			DeepTrace_exit_cleanup();
 			DEEPTRACE_G(exitMode) = DEEPTRACE_EXIT_NORMAL;
 
@@ -211,11 +211,11 @@ PHP_FUNCTION(dt_exit_mode) {
 		break;
 	case 2:
 		/* DEEPTRACE_EXIT_HANDLER */
-		if(exitMode == DEEPTRACE_EXIT_HANDLER) {
+		if(EXPECTED(exitMode == DEEPTRACE_EXIT_HANDLER)) {
 			DeepTrace_exit_cleanup();
 
 			/* Set handler */
-			if(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction) != SUCCESS)
+			if(UNEXPECTED(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction) != SUCCESS))
 				RETURN_FALSE;
 
 			/* Create instance of exception class */
@@ -226,11 +226,11 @@ PHP_FUNCTION(dt_exit_mode) {
 		break;
 	case 3:
 		/* DEEPTRACE_EXIT_EXCEPTION */
-		if(exitMode == DEEPTRACE_EXIT_EXCEPTION) {
+		if(EXPECTED(exitMode == DEEPTRACE_EXIT_EXCEPTION)) {
 			DeepTrace_exit_cleanup();
 
 			/* Set handler */
-			if(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction) != SUCCESS)
+			if(UNEXPECTED(DeepTrace_exit_set_handler(DeepTrace_exit_handler, handlerFunction) != SUCCESS))
 				RETURN_FALSE;
 
 			/* Create exception class */
