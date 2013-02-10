@@ -133,8 +133,19 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 			DEEPTRACE_G(exitException)->parent = zend_exception_get_default(TSRMLS_C);
 
 			if(exitMsg) {
-				if(Z_TYPE_P(exitMsg) != IS_STRING) convert_to_string(exitMsg);
-				zend_throw_exception(DEEPTRACE_G(exitException), Z_STRVAL_P(exitMsg), -1 TSRMLS_CC);
+				zval *message, *exception;
+
+				ALLOC_ZVAL(message);
+				INIT_PZVAL_COPY(message, exitMsg);
+				zval_copy_ctor(message);
+
+				if(Z_TYPE_P(exitMsg) != IS_STRING) {
+					convert_to_string(message);
+				}
+
+				exception = zend_throw_exception(DEEPTRACE_G(exitException), NULL, -1 TSRMLS_CC);
+				zend_update_property(DEEPTRACE_G(exitException), exception, "message", sizeof("message") - 1, message TSRMLS_CC);
+				zval_ptr_dtor(&message);
 			} else {
 				zend_throw_exception(DEEPTRACE_G(exitException), "", -1 TSRMLS_CC);
 			}
