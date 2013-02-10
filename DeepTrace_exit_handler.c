@@ -33,10 +33,18 @@ static zval *DeepTrace_get_zval_ptr(int op_type, znode_op *node, zval **freeval,
 	case IS_VAR:
 		return EX_T(node->var).var.ptr;
 	case IS_TMP_VAR:
+#if DEEPTRACE_PHP_VERSION >= 55
+		return (*freeval = &EX_TMP_VAR_NUM(execute_data, node->var)->tmp_var);
+#else
 		return (*freeval = &EX_T(node->var).tmp_var);
+#endif
 	case IS_CV:
 	{
+#if DEEPTRACE_PHP_VERSION >= 55
+		zval ***ret = EX_CV_NUM(execute_data, node->var);
+#else
 		zval ***ret = &execute_data->CVs[node->var];
+#endif
 		if(!*ret) {
 			zend_compiled_variable *cv = &EG(active_op_array)->vars[node->var];
 			if(zend_hash_quick_find(EG(active_symbol_table), cv->name, cv->name_len + 1,

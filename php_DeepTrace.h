@@ -38,6 +38,19 @@
 extern zend_module_entry DeepTrace_module_entry;
 #define phpext_DeepTrace_ptr &DeepTrace_module_entry
 
+/*
+ * Detect current PHP version
+ * Not yet used, added for backwards compatibility
+ */
+#if PHP_API_VERSION >= 20121113
+#define DEEPTRACE_PHP_VERSION 55
+#elif PHP_API_VERSION >= 20090626
+#define DEEPTRACE_PHP_VERSION 54
+#else
+#define DEEPTRACE_PHP_VERSION 53
+#error "DeepTrace 2 does not support PHP 5.3 anymore."
+#endif
+
 /* Macro for exporting DeepTrace API functions to other extensions  */
 #if defined(__GNUC__) && __GNUC__ >= 4
 #define PHP_DEEPTRACE_API __attribute__ ((visibility("default")))
@@ -56,7 +69,11 @@ extern zend_module_entry DeepTrace_module_entry;
 /* Adjust some zend macros */
 #undef EX
 #define EX(element) execute_data->element
+#if DEEPTRACE_PHP_VERSION >= 55
+#define EX_T(offset) (*EX_TMP_VAR(execute_data, offset))
+#else
 #define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
+#endif
 
 /* Zend closure structure */
 typedef struct _zend_closure {
@@ -71,17 +88,6 @@ PHP_MSHUTDOWN_FUNCTION(DeepTrace);
 PHP_RINIT_FUNCTION(DeepTrace);
 PHP_RSHUTDOWN_FUNCTION(DeepTrace);
 PHP_MINFO_FUNCTION(DeepTrace);
-
-/*
- * Detect current PHP version
- * Not yet used, added for backwards compatibility
- */
-#if PHP_API_VERSION > 20090626
-#define DEEPTRACE_PHP_VERSION 54
-#else
-#define DEEPTRACE_PHP_VERSION 53
-#error "DeepTrace 2 does not support PHP 5.3 anymore."
-#endif
 
 /* DeepTrace opcode handler structure */
 typedef struct {
