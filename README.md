@@ -1,7 +1,7 @@
 # DeepTrace v2.0
 ### Copyright (c) 2012 - 2013 Pascal Mathis (pmathis@snapserv.net), Yussuf Khalil (dev@pp3345.net)
 * * *
-#### License informations
+#### License information
 The code is licensed via the Apache License 2.0: http://www.apache.org/licenses/LICENSE-2.0
 
 Means:
