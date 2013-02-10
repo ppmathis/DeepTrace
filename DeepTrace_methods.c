@@ -116,7 +116,9 @@ static int DeepTrace_fetch_class(char *className, int className_len, zend_class_
 
 	/* Warning if user tries to modify a internal class */
 	if(ce->type != ZEND_USER_CLASS) {
+#ifdef DEEPTRACE_NOTICES
 		php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Class '%s' is not a user-defined class.", className);
+#endif
 	}
 
 	/* Check if it is a interface */
@@ -144,7 +146,9 @@ static int DeepTrace_fetch_class_method(char *className, int className_len, char
 
 	/* Warning if user tries to modify a internal class */
 	if(ce->type != ZEND_USER_CLASS) {
+#ifdef DEEPTRACE_NOTICES
 		php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Class '%s' is not a user-defined class.", className);
+#endif
 	}
 	if(pce) *pce = ce;
 
@@ -158,8 +162,10 @@ static int DeepTrace_fetch_class_method(char *className, int className_len, char
 
 	/* Warning if user tries to modify a internal method */
 	if(fe->type != ZEND_USER_FUNCTION) {
+#ifdef DEEPTRACE_NOTICES
 		php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Method '%s::%s()' is not a user-defined method.",
 				className, methodName);
+#endif
 	}
 	if(pfe) *pfe = fe;
 
