@@ -187,7 +187,8 @@ static int DeepTrace_exit_set_handler(user_opcode_handler_t handler, deeptrace_o
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_exit_mode) */
+/* {{{ proto bool dt_exit_mode(int exitMode [, callable handlerFunction[, string exceptionName]])
+   Sets or resets the exit handling mode */
 PHP_FUNCTION(dt_exit_mode) {
 	long exitMode;
 	DEEPTRACE_DECL_HANDLER_PARAM(handlerFunction);
@@ -255,7 +256,8 @@ PHP_FUNCTION(dt_exit_mode) {
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_exit_fetch_exception) */
+/* {{{ proto dt_exit_fetch_exception()
+   Makes an exit exception an instance of the Exception class. */
 PHP_FUNCTION(dt_exit_fetch_exception) {
 	if(DEEPTRACE_G(exitMode) != DEEPTRACE_EXIT_EXCEPTION) return;
 	if(!DEEPTRACE_G(exitException) || !DEEPTRACE_G(exitException)->parent) return;

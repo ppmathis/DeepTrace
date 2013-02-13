@@ -394,7 +394,8 @@ void DeepTrace_methods_cleanup(TSRMLS_D)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_add_method) */
+/* {{{ proto bool dt_add_method(string className, string methodName, string argumentString, string phpCode [, int flags])
+   Adds a method to a class */
 PHP_FUNCTION(dt_add_method)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);
@@ -511,7 +512,8 @@ PHP_FUNCTION(dt_add_method)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_rename_method) */
+/* {{{ proto bool dt_rename_method(string className, string oldMethodName, string newMethodName)
+   Renames a method */
 PHP_FUNCTION(dt_rename_method)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);
@@ -617,7 +619,8 @@ PHP_FUNCTION(dt_rename_method)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_remove_method) */
+/* {{{ proto bool dt_remove_method(string className, string methodName)
+   Removes a method from a class */
 PHP_FUNCTION(dt_remove_method)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);
@@ -644,7 +647,8 @@ PHP_FUNCTION(dt_remove_method)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_set_static_method_variable) */
+/* {{{ proto bool dt_set_static_method_variable(string className, string methodName, string variableName, mixed value)
+   Sets the value of a static variable inside a method */
 PHP_FUNCTION(dt_set_static_method_variable)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);

@@ -182,7 +182,8 @@ void DeepTrace_clear_all_functions_runtime_cache(TSRMLS_D)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_rename_function) */
+/* {{{ proto bool dt_rename_function(string oldName, string newName)
+   Renames a function */
 PHP_FUNCTION(dt_rename_function)
 {
 	DEEPTRACE_DECL_STRING_PARAM(oldFuncName);
@@ -253,7 +254,8 @@ PHP_FUNCTION(dt_rename_function)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_remove_function) */
+/* {{{ proto bool dt_remove_function(string functionName)
+   Removes a function */
 PHP_FUNCTION(dt_remove_function)
 {
 	DEEPTRACE_DECL_STRING_PARAM(functionName);
@@ -294,6 +296,8 @@ PHP_FUNCTION(dt_remove_function)
 }
 /* }}} */
 
+/* {{{ proto bool dt_set_static_function_variable(string functionName, string variableName, mixed value)
+   Sets the value of a static variable inside a function */
 PHP_FUNCTION(dt_set_static_function_variable)
 {
 	DEEPTRACE_DECL_STRING_PARAM(functionName);
@@ -343,8 +347,10 @@ PHP_FUNCTION(dt_set_static_function_variable)
 	efree(functionName);
 	RETURN_TRUE;
 }
+/* }}} */
 
-/* {{{ PHP_FUNCTION(dt_destroy_function_data) */
+/* {{{ proto bool dt_destroy_function_data(string functionName)
+   Destroys the data of a function */
 PHP_FUNCTION(dt_destroy_function_data)
 {
 	DEEPTRACE_DECL_STRING_PARAM(functionName);

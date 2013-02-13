@@ -48,7 +48,8 @@ static zend_bool setproctitle(char *title, int title_len TSRMLS_DC)
 #endif
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_set_proctitle) */
+/* {{{ proto bool dt_set_proctitle(string title)
+   Sets the title of the current process */
 PHP_FUNCTION(dt_set_proctitle)
 {
 	DEEPTRACE_DECL_STRING_PARAM(title);
@@ -69,7 +70,8 @@ PHP_FUNCTION(dt_set_proctitle)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_phpinfo_mode) */
+/* {{{ proto bool dt_phpinfo_mode(bool phpInfoAsText)
+   Switches between text-only and HTML phpinfo() mode */
 PHP_FUNCTION(dt_phpinfo_mode)
 {
 	zend_bool phpinfoMode;
@@ -83,7 +85,8 @@ PHP_FUNCTION(dt_phpinfo_mode)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_remove_include) */
+/* {{{ proto bool dt_remove_include(string includeName)
+   Removes a file from the list of included files */
 PHP_FUNCTION(dt_remove_include)
 {
 	DEEPTRACE_DECL_STRING_PARAM(includeName);
@@ -110,7 +113,8 @@ PHP_FUNCTION(dt_remove_include)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_inspect_zval) */
+/* {{{ proto dt_inspect_zval(mixed value)
+   Dumps refcount, type and memory address of a zval */
 PHP_FUNCTION(dt_inspect_zval)
 {
 	zval *val;
@@ -164,7 +168,8 @@ static int DeepTrace_object_property_dump(zval **zv TSRMLS_DC, int num_args, va_
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_debug_objects_store) */
+/* {{{ proto dt_debug_objects_store([int dumpObjects = 0])
+   Lists all entries in the PHP objects store. Available only when PHP was compiled with --enable-debug */
 PHP_FUNCTION(dt_debug_objects_store)
 {
 	zend_objects_store store = EG(objects_store);

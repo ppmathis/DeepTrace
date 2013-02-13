@@ -21,7 +21,8 @@
 
 #include "php_DeepTrace.h"
 
-/* {{{ PHP_FUNCTION(dt_remove_constant) */
+/* {{{ proto bool dt_remove_constant(string constantName)
+   Deletes a PHP constant */
 PHP_FUNCTION(dt_remove_constant)
 {
 	DEEPTRACE_DECL_STRING_PARAM(constantName);

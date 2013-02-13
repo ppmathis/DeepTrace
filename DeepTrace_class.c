@@ -21,7 +21,8 @@
 
 #include "php_DeepTrace.h"
 
-/* {{{ PHP_FUNCTION(dt_remove_class) */
+/* {{{ proto bool dt_remove_class(string className)
+   Deletes a PHP class */
 PHP_FUNCTION(dt_remove_class)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);
@@ -46,7 +47,8 @@ PHP_FUNCTION(dt_remove_class)
 }
 /* }}} */
 
-/* {{{ PHP_FUNCTION(dt_destroy_class_data) */
+/* {{{ proto bool dt_destroy_class_data(string className)
+   Destroys the data of a PHP class. */
 PHP_FUNCTION(dt_destroy_class_data)
 {
 	DEEPTRACE_DECL_STRING_PARAM(className);
