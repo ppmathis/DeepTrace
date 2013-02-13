@@ -209,23 +209,17 @@ PHP_FUNCTION(dt_debug_objects_store)
 			continue;
 		}
 
-		/* Output object ID, class and refcount */
-		printf("Object %d of class %s at %#x: %u references", i, zobj->ce->name, zobj, obj->refcount);
-
-		/* Output property count */
-		if(zobj->properties) {
-			printf(", %d properties", zend_hash_num_elements(zobj->properties));
+		/* Rebuild property table if necessary */
+		if(!zobj->properties) {
+			rebuild_object_properties(zobj);
 		}
 
-		printf("\n");
+		/* Output object ID, class and refcount */
+		printf("Object %d of class %s at %#x: %u references, %d properties\n", i, zobj->ce->name, zobj, obj->refcount, zend_hash_num_elements(zobj->properties));
 
 		if(dumpObjects) {
 			/* Dump properties */
-			if(zobj->properties) {
-				zend_hash_apply_with_arguments(zobj->properties TSRMLS_CC, (apply_func_args_t) DeepTrace_object_property_dump, 1, 1);
-			} else {
-				printf("Can't dump object\n");
-			}
+			zend_hash_apply_with_arguments(zobj->properties TSRMLS_CC, (apply_func_args_t) DeepTrace_object_property_dump, 1, 1);
 		}
 	}
 
