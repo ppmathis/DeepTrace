@@ -233,4 +233,8 @@ PHP_FUNCTION(dt_rename_method);
 PHP_FUNCTION(dt_remove_method);
 PHP_FUNCTION(dt_set_static_method_variable);
 
+#if ZEND_DEBUG
+PHP_FUNCTION(dt_debug_objects_store);
+#endif
+
 #endif

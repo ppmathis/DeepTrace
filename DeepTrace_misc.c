@@ -130,3 +130,110 @@ PHP_FUNCTION(dt_inspect_zval)
 	add_assoc_long(return_value, "type", val->type);
 }
 /* }}} */
+
+#if ZEND_DEBUG
+/* Copy of PHP function */
+static int DeepTrace_object_property_dump(zval **zv TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) /* {{{ */
+{
+	int level;
+	const char *prop_name, *class_name;
+
+	level = va_arg(args, int);
+
+	if (hash_key->nKeyLength == 0) { /* numeric key */
+		php_printf("%*c[%ld]=>\n", level + 1, ' ', hash_key->h);
+	} else { /* string key */
+		int unmangle = zend_unmangle_property_name(hash_key->arKey, hash_key->nKeyLength - 1, &class_name, &prop_name);
+		php_printf("%*c[", level + 1, ' ');
+
+		if (class_name && unmangle == SUCCESS) {
+			if (class_name[0] == '*') {
+				php_printf("\"%s\":protected", prop_name);
+			} else {
+				php_printf("\"%s\":\"%s\":private", prop_name, class_name);
+			}
+		} else {
+			php_printf("\"");
+			PHPWRITE(hash_key->arKey, hash_key->nKeyLength - 1);
+			php_printf("\"");
+		}
+		ZEND_PUTS("]=>\n");
+	}
+	php_var_dump(zv, level + 2 TSRMLS_CC);
+	return 0;
+}
+/* }}} */
+
+/* {{{ PHP_FUNCTION(dt_debug_objects_store) */
+PHP_FUNCTION(dt_debug_objects_store)
+{
+	zend_objects_store store = EG(objects_store);
+	int i;
+	struct _store_object *obj;
+	zend_object *zobj;
+	HashTable *freeTable;
+	int dumpObjects = 0;
+
+	ALLOC_HASHTABLE(freeTable);
+	zend_hash_init_ex(freeTable, 0, NULL, NULL, 1, 0);
+
+	if(UNEXPECTED(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &dumpObjects) == FAILURE)) {
+		RETURN_FALSE;
+	}
+
+	printf("---- DEBUG ZEND OBJECTS STORE ----\n");
+
+	/* Dump basic object store data */
+	printf("Top: %u\n", store.top);
+	printf("Size: %u\n", store.size);
+	printf("Free List Head: %d\n", store.free_list_head);
+
+	/* Check for free buckets in object store */
+	for(i = 0;i < store.top;i++) {
+		if(!zend_hash_index_exists(freeTable, EG(objects_store).object_buckets[i].bucket.free_list.next)) {
+			zend_hash_index_update(freeTable, EG(objects_store).object_buckets[i].bucket.free_list.next, NULL, 0, NULL);
+		}
+	}
+
+	for(i = 0;i < store.top;i++) {
+		/* Ignore bucket if free */
+		if(i == store.free_list_head || zend_hash_index_exists(freeTable, i)) {
+			continue;
+		}
+
+		obj = &EG(objects_store).object_buckets[i].bucket.obj;
+		zobj = obj->object;
+
+		/* Ignore object if NULL */
+		if(obj == NULL || zobj == NULL) {
+			continue;
+		}
+
+		/* Output object ID, class and refcount */
+		printf("Object %d of class %s at %#x: %u references", i, zobj->ce->name, zobj, obj->refcount);
+
+		/* Output property count */
+		if(zobj->properties) {
+			printf(", %d properties", zend_hash_num_elements(zobj->properties));
+		}
+
+		printf("\n");
+
+		if(dumpObjects) {
+			/* Dump properties */
+			if(zobj->properties) {
+				zend_hash_apply_with_arguments(zobj->properties TSRMLS_CC, (apply_func_args_t) DeepTrace_object_property_dump, 1, 1);
+			} else {
+				printf("Can't dump object\n");
+			}
+		}
+	}
+
+	/* Free memory */
+	zend_hash_destroy(freeTable);
+	efree(freeTable);
+
+	printf("---- END DEBUG ZEND OBJECTS STORE ----\n");
+}
+/* }}} */
+#endif

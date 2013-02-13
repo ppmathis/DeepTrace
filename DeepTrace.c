@@ -135,6 +135,9 @@ const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_rename_method, arginfo_dt_rename_method)
 		PHP_FE(dt_remove_method, arginfo_dt_remove_method)
 		PHP_FE(dt_set_static_method_variable, arginfo_dt_set_static_method_variable)
+#if ZEND_DEBUG
+		PHP_FE(dt_debug_objects_store, NULL)
+#endif
 		PHP_FE_END
 };
 /* }}} */
