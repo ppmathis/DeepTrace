@@ -23,14 +23,18 @@
 
 /* {{{ DeepTrace_get_zval_ptr */
 static zval *DeepTrace_get_zval_ptr(int op_type, znode_op *node, zval **freeval,
-		zend_execute_data *execute_data TSRMLS_DC)
+		zend_execute_data *execute_data, zend_free_op *should_free TSRMLS_DC)
 {
 	*freeval = NULL;
+	should_free->var = 0;
 
 	switch(op_type) {
 	case IS_CONST:
 		return node->zv;
 	case IS_VAR:
+		if(Z_DELREF_P(EX_T(node->var).var.ptr) == 0) {
+			should_free->var = EX_T(node->var).var.ptr;
+		}
 		return EX_T(node->var).var.ptr;
 	case IS_TMP_VAR:
 #if DEEPTRACE_PHP_VERSION >= 55
@@ -101,6 +105,7 @@ void DeepTrace_exit_cleanup(TSRMLS_D)
 int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 {
 	zval *exitMsg, *tmp, *retval;
+	zend_free_op should_free;
 
 	/* If there is no user handler specified, call the default one */
 	if(DEEPTRACE_G(exitMode) == DEEPTRACE_EXIT_NORMAL) {
@@ -112,8 +117,11 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 	}
 
 	/* Get exit message if there was one */
-	exitMsg = DeepTrace_get_zval_ptr(EX(opline)->op1_type, &EX(opline)->op1, &tmp, execute_data TSRMLS_CC);
-	if(EXPECTED(exitMsg != NULL)) zend_fcall_info_argn(&DEEPTRACE_G(exitHandler).fci TSRMLS_CC, 1, &exitMsg);
+	exitMsg = DeepTrace_get_zval_ptr(EX(opline)->op1_type, &EX(opline)->op1, &tmp, execute_data, &should_free TSRMLS_CC);
+	if(EXPECTED(exitMsg != NULL)) {
+		Z_ADDREF_P(exitMsg);
+		zend_fcall_info_argn(&DEEPTRACE_G(exitHandler).fci TSRMLS_CC, 1, &exitMsg);
+	}
 
 	/* Call user handler */
 	zend_fcall_info_call(&DEEPTRACE_G(exitHandler).fci, &DEEPTRACE_G(exitHandler).fcc, &retval, NULL TSRMLS_CC);
@@ -159,6 +167,14 @@ int DeepTrace_exit_handler(ZEND_OPCODE_HANDLER_ARGS)
 			}
 
 			DEEPTRACE_G(exitException)->parent = NULL;
+		}
+
+		if(should_free.var) {
+			zval_ptr_dtor(&should_free.var);
+		}
+
+		if(tmp != NULL) {
+			zval_dtor(tmp);
 		}
 
 		return ZEND_USER_OPCODE_CONTINUE;
