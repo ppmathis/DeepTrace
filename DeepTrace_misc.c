@@ -64,8 +64,8 @@ PHP_FUNCTION(dt_set_proctitle)
 	RETURN_FALSE;
 #else
 	/* Use the native call when it is available */
-	if(EXPECTED(setproctitle("%s", title))) RETURN_TRUE;
-	RETURN_FALSE;
+	setproctitle("%s", title);
+	RETURN_TRUE;
 #endif
 }
 /* }}} */
