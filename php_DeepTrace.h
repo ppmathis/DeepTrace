@@ -216,7 +216,9 @@ void DeepTrace_clear_all_functions_runtime_cache(TSRMLS_D);
 
 /* DeepTrace PHP functions */
 PHP_FUNCTION(dt_phpinfo_mode);
+#if DEEPTRACE_PHP_VERSION < 55
 PHP_FUNCTION(dt_set_proctitle);
+#endif
 PHP_FUNCTION(dt_exit_mode);
 PHP_FUNCTION(dt_exit_fetch_exception);
 PHP_FUNCTION(dt_inspect_zval);

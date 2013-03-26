@@ -21,6 +21,7 @@
 
 #include "php_DeepTrace.h"
 
+#if DEEPTRACE_PHP_VERSION < 55
 /* {{{ setproctitle */
 #ifndef DEEPTRACE_SYSTEM_PROVIDES_SETPROCTITLE
 static zend_bool setproctitle(char *title, int title_len TSRMLS_DC)
@@ -69,6 +70,7 @@ PHP_FUNCTION(dt_set_proctitle)
 #endif
 }
 /* }}} */
+#endif
 
 /* {{{ proto bool dt_phpinfo_mode(bool phpInfoAsText)
    Switches between text-only and HTML phpinfo() mode */

@@ -114,7 +114,9 @@ ZEND_END_ARG_INFO()
 /* {{{ DeepTrace function table */
 const zend_function_entry DeepTrace_functions[] = {
 		PHP_FE(dt_phpinfo_mode, arginfo_dt_phpinfo_mode)
+#if DEEPTRACE_PHP_VERSION < 55
 		PHP_FE(dt_set_proctitle, arginfo_dt_set_proctitle)
+#endif
 		PHP_FE(dt_remove_include, arginfo_dt_remove_include)
 		PHP_FE(dt_inspect_zval, arginfo_dt_inspect_zval)
 
